@@ -86,3 +86,47 @@ class BaseTool(ABC):
             "description": schema["function"]["description"],
             "input_schema": schema["function"]["parameters"],
         }
+
+
+# ============================================================================
+# SDK 兼容层 — 保持迁移文件的业务逻辑不变
+# ============================================================================
+
+# Tool 别名：迁移文件中 class Foo(Tool) 继承自 SDK Tool，
+# 现在指向本地 BaseTool
+Tool = BaseTool
+
+# Param 别名：迁移文件中大量使用 Param(name=..., description=..., ...)
+Param = ToolParam
+
+
+@dataclass
+class Parameters:
+    """SDK Parameters 兼容 shim"""
+    type: str = "object"
+    properties: dict = None
+    required: list = None
+
+    def __post_init__(self):
+        if self.properties is None:
+            self.properties = {}
+        if self.required is None:
+            self.required = []
+
+
+@dataclass
+class ToolInfo:
+    """SDK ToolInfo 兼容 shim"""
+    type: str = "function"
+    name: str = ""
+    description: str = ""
+    parameters: Parameters = None
+
+    def __post_init__(self):
+        if self.parameters is None:
+            self.parameters = Parameters()
+
+
+class LocalFunction:
+    """SDK LocalFunction 兼容 shim (placeholder)"""
+    pass
