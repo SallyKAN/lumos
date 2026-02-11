@@ -1,0 +1,109 @@
+# lumos code 配置文件示例
+# 复制此文件为 config.yaml 并根据需要修改
+
+agent:
+  id: "lumos"
+  version: "1.0.0"
+  description: "lumos code - AI Programming Assistant"
+
+models:
+  # 主模型（用于复杂推理）
+  main:
+    provider: "anthropic"  # 可选: anthropic, openai, ollama
+    model_name: "claude-sonnet-4-5-20250929"
+    api_base: "https://api.anthropic.com"
+    api_key: "${ANTHROPIC_API_KEY}"  # 或直接填写密钥
+    temperature: 0.7
+    max_tokens: 8192
+
+  # 辅助模型（用于简单任务，如 Explore 子 Agent）
+  small:
+    provider: "anthropic"
+    model_name: "claude-3-5-haiku-20241022"
+    api_base: "https://api.anthropic.com"
+    api_key: "${ANTHROPIC_API_KEY}"
+    temperature: 0.7
+    max_tokens: 4096
+
+# 模型路由配置（双模型路由）
+routing:
+  enabled: true  # 是否启用路由（false 则全部使用主模型）
+  # 子 Agent 模型映射说明：
+  # - Explore 类型子 Agent 使用 small 模型（只做搜索和读取）
+  # - Plan、code-reviewer、debugger 等使用 main 模型（需要复杂推理）
+  # - 主 Agent 始终使用 main 模型
+
+behavior:
+  max_iterations: 10  # 最大迭代次数
+  max_context_tokens: 100000  # 最大上下文 token 数
+  compression_threshold: 0.92  # 上下文压缩阈值（92%）
+  auto_confirm_dangerous: false  # 是否自动确认危险操作
+
+security:
+  # 黑名单命令
+  blocked_commands:
+    - "rm -rf /"
+    - "mkfs"
+    - "dd if=/dev/zero"
+    - ":(){:|:&};:"
+    - "chmod -R 777 /"
+
+  # 受限路径
+  restricted_paths:
+    - "/etc"
+    - "/usr/bin"
+    - "/usr/sbin"
+    - "/Windows"
+    - "C:\\Windows"
+
+  # 最大文件大小（MB）
+  max_file_size_mb: 10
+
+tools:
+  # 启用的工具
+  enabled:
+    - "read_file"
+    - "write_file"
+    - "edit_file"
+    - "bash"
+    - "grep"
+    - "glob"
+    - "todowrite"
+    - "task"
+
+  # 文件工具配置
+  file:
+    max_file_size_mb: 10
+    restricted_paths: ${security.restricted_paths}
+
+  # Bash 工具配置
+  bash:
+    timeout_seconds: 120  # 命令超时时间
+    working_dir: "."  # 默认工作目录
+
+cli:
+  theme: "dark"  # 主题: dark, light
+  show_thinking: true  # 显示思考过程
+  streaming_output: true  # 流式输出
+  markdown_rendering: true  # Markdown 渲染
+
+# 多媒体输出配置
+media:
+  # 媒体文件输出目录（按会话隔离）
+  output_dir: "~/.lumos/media"
+  # Base64 编码阈值（KB），小于此值使用 Base64 内联传输
+  base64_threshold_kb: 100
+  # 最大文件大小（MB）
+  max_file_size_mb: 50
+  # 自动清理天数（0 表示不清理）
+  cleanup_after_days: 7
+
+logging:
+  level: "INFO"  # 日志级别: DEBUG, INFO, WARNING, ERROR
+  file: "./logs/lumos.log"
+  trajectory_dir: "./trajectories"  # 轨迹记录目录
+
+# 环境变量说明：
+# ANTHROPIC_API_KEY - Anthropic API 密钥
+# OPENAI_API_KEY - OpenAI API 密钥（如果使用 OpenAI）
+# OLLAMA_BASE_URL - Ollama 服务地址（如果使用 Ollama）
