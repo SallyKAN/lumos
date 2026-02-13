@@ -8,9 +8,6 @@ import os
 import asyncio
 from typing import Optional
 
-    0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'agent-core')
-)
-
 
 from ..core.tool import Tool, ToolInfo, Parameters, Param
 

@@ -19,8 +19,6 @@ import asyncio
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
-)
-
 
 from ..core.tool import Tool, ToolInfo, Parameters, Param
 

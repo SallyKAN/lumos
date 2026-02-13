@@ -25,8 +25,6 @@ from typing import Optional, List
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-)
-
 
 from ..core.tool import Tool, ToolInfo, Parameters, Param
 

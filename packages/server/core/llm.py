@@ -1,7 +1,7 @@
 """
 Lumos Core — LLM 抽象层
 
-替代 openJiuwen SDK 的 BaseModelInfo, ModelConfig。
+自建 LLM 抽象层，定义 LLMConfig, Message, ToolCall。
 提供统一的 LLM 配置和消息格式。
 """
 

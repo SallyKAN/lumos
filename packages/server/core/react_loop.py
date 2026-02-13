@@ -1,7 +1,7 @@
 """
 Lumos Core — ReAct Loop
 
-自建 ReAct (Reasoning + Acting) 循环，替代 openJiuwen SDK 的 ReActAgent。
+自建 ReAct (Reasoning + Acting) 循环核心。
 直接调用 Anthropic/OpenAI API，处理 tool_use 响应，循环执行直到完成。
 """
 

@@ -492,7 +492,7 @@ class OpenRouterLLM(BaseLLM):
                 http_client=http_client,
                 default_headers={
                     "HTTP-Referer": "https://github.com/lumos/lumos-code",
-                    "X-Title": "Jiuwen Code"
+                    "X-Title": "Lumos"
                 }
             )
         except ImportError:
