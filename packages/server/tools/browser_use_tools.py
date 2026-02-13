@@ -34,8 +34,6 @@ import asyncio
 from pathlib import Path
 from typing import Optional, List, Tuple, Any, Union, Callable, Dict
 
-)
-
 
 from ..core.tool import Tool, ToolInfo, Parameters, Param
 

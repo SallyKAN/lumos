@@ -1,7 +1,7 @@
 """
 Lumos Core — Tool 抽象层
 
-替代 openJiuwen SDK 的 Tool, ToolInfo, Parameters, Param。
+自建 Tool 抽象层，定义 BaseTool 和 ToolParam。
 所有工具继承 BaseTool，实现 execute() 方法。
 """
 

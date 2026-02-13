@@ -1,7 +1,7 @@
 """
 Agent 服务层
 
-封装 JiuwenCodeAgent，提供 Web API 友好的接口。
+封装 LumosAgent，提供 Web API 友好的接口。
 """
 
 import asyncio
@@ -26,7 +26,7 @@ from ..websocket.protocol import (
 # 导入核心模块
 from ...agents.lumos_agent import (
     AgentEvent,
-    JiuwenCodeAgent,
+    LumosAgent,
     create_lumos_agent,
 )
 from ...agents.mode_manager import AgentMode, AgentModeManager
@@ -52,7 +52,7 @@ class TodoSnapshot:
 class AgentSession:
     """Agent 会话封装"""
     session_id: str
-    agent: JiuwenCodeAgent
+    agent: LumosAgent
     mode_manager: AgentModeManager
     todo_manager: TodoPersistenceManager
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -453,7 +453,7 @@ class AgentService:
         """将持久化的消息历史注入到 SDK 的 ContextEngine
 
         Args:
-            agent: JiuwenCodeAgent 实例
+            agent: LumosAgent 实例
             session_id: 会话 ID
             messages: 消息列表 [{"role": "user/assistant", "content": "..."}]
         """

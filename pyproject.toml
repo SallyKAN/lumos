@@ -57,14 +57,14 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/SnapeK/lumos"
-Repository = "https://github.com/SnapeK/lumos"
+Homepage = "https://github.com/SallyKAN/lumos"
+Repository = "https://github.com/SallyKAN/lumos"
 
 [project.scripts]
 lumos = "packages.cli.main:main"
 
-[tool.setuptools]
-packages = ["packages.server", "packages.cli"]
+[tool.setuptools.packages.find]
+include = ["packages*"]
 
 [tool.setuptools.package-data]
 "packages.server" = ["config/*.yaml"]

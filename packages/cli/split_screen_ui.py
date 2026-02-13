@@ -111,7 +111,7 @@ class SplitScreenUI:
         completer: Optional[Completer] = None,
         on_submit: Optional[Callable[[str], Awaitable[None]]] = None,
         prompt_text: str = "❯ ",
-        title: str = "Jiuwen Code"
+        title: str = "Lumos"
     ):
         """初始化分屏 UI
 
