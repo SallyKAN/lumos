@@ -1,7 +1,7 @@
 """
 Lumos Agent — 独立的 AI 编程助手 Agent
 
-不依赖任何第三方 Agent 框架，使用自建 ReAct Loop。
+使用 Pi Agent 风格的 core.Agent 驱动。
 """
 
 import asyncio
@@ -12,8 +12,14 @@ import random
 from pathlib import Path
 from typing import Any, AsyncIterator, Dict, List, Optional
 
-from ..core.react_loop import ReActLoop, ReActEvent, EventType
-from ..core.llm import LLMConfig
+from ..core.agent import Agent as CoreAgent
+from ..core.stream_fn import get_default_stream_fn
+from ..core.types import (
+    AgentEvent as CoreAgentEvent,
+    AgentEventType,
+    AgentLoopConfig,
+    LLMConfig,
+)
 from .mode_manager import AgentModeManager, AgentMode
 from ..tools.lumos_tools import create_tools_for_mode
 from ..skills.manager import SkillManager
@@ -60,12 +66,12 @@ def get_provider(provider: str) -> str:
 class LumosAgent:
     """Lumos Agent
 
-    独立的 AI 编程助手，使用自建 ReAct Loop。
+    独立的 AI 编程助手，使用 Pi Agent 风格的 core.Agent 驱动。
 
     特性：
     - 多模式支持（build/plan/review）
     - 模式感知的工具权限
-    - ReAct 推理模式（自建循环）
+    - Pi Agent 风格的 agent loop
     - 错误重试（指数退避 + 抖动）
     - 循环检测（write-rm 模式）
     """
@@ -344,8 +350,8 @@ MEDIA:/tmp/screenshot_123.png
         self._tools: List = []
         self._refresh_tools()
 
-        # ReAct Loop 实例（延迟创建）
-        self._loop: Optional[ReActLoop] = None
+        # CoreAgent 实例（延迟创建）
+        self._agent: Optional[CoreAgent] = None
 
         # 工具调用历史追踪（用于循环检测）
         self._tool_call_history: List[Dict[str, Any]] = []
@@ -403,18 +409,16 @@ MEDIA:/tmp/screenshot_123.png
         """
         self._subtask_event_callback = callback
         self._refresh_tools()
-        if self._loop:
-            self._loop.tools.clear()
-            self._loop.add_tools(self._tools)
+        if self._agent:
+            self._agent.set_tools(self._tools)
 
     def refresh_tools(self):
         """刷新工具列表（模式切换后调用）"""
         self._refresh_tools()
-        if self._loop:
-            self._loop.tools.clear()
-            self._loop.add_tools(self._tools)
+        if self._agent:
+            self._agent.set_tools(self._tools)
 
-    # ==================== ReAct Loop 初始化 ====================
+    # ==================== CoreAgent 初始化 ====================
 
     def _build_system_prompt(self) -> str:
         """构建完整系统提示词（包含模式、skill 列表和激活的 skill 提示词）"""
@@ -434,16 +438,16 @@ MEDIA:/tmp/screenshot_123.png
 
         return full_prompt
 
-    def _init_loop(self, force_reinit: bool = False):
-        """初始化 ReAct Loop
+    def _init_agent(self, force_reinit: bool = False):
+        """初始化 CoreAgent
 
         Args:
             force_reinit: 强制重新初始化（用于更新配置）
         """
-        if self._loop is not None and not force_reinit:
+        if self._agent is not None and not force_reinit:
             return
 
-        config = LLMConfig(
+        llm_config = LLMConfig(
             provider=self.provider,
             model=self.model_name,
             api_key=self.api_key or "",
@@ -454,13 +458,21 @@ MEDIA:/tmp/screenshot_123.png
             top_p=0.9,
         )
 
-        self._loop = ReActLoop(
-            config=config,
+        loop_config = AgentLoopConfig(
             system_prompt=self._build_system_prompt(),
             max_iterations=self.max_iterations,
         )
 
-        self._loop.add_tools(self._tools)
+        stream_fn = get_default_stream_fn(llm_config)
+
+        agent = CoreAgent(
+            llm_config=llm_config,
+            loop_config=loop_config,
+            stream_fn=stream_fn,
+        )
+
+        agent.set_tools(self._tools)
+        self._agent = agent
 
     # ==================== 模式 / Skill 管理 ====================
 
@@ -475,7 +487,7 @@ MEDIA:/tmp/screenshot_123.png
         """
         if self.mode_manager.switch_mode(mode):
             self.refresh_tools()
-            self._loop = None
+            self._agent = None
             return True
         return False
 
@@ -492,7 +504,7 @@ MEDIA:/tmp/screenshot_123.png
         if skill:
             self.skill_manager.activate_skill(skill)
             self._refresh_tools()
-            self._loop = None
+            self._agent = None
             return True
         return False
 
@@ -500,7 +512,7 @@ MEDIA:/tmp/screenshot_123.png
         """停用当前 skill"""
         self.skill_manager.deactivate_skill()
         self._refresh_tools()
-        self._loop = None
+        self._agent = None
 
     def get_current_skill(self):
         """获取当前激活的 skill"""
@@ -563,7 +575,7 @@ MEDIA:/tmp/screenshot_123.png
         Returns:
             执行结果
         """
-        self._init_loop()
+        self._init_agent()
 
         max_retries = 5
         base_delay = 1.0
@@ -572,7 +584,22 @@ MEDIA:/tmp/screenshot_123.png
 
         for attempt in range(max_retries):
             try:
-                result = await self._loop.run(query)  # type: ignore[union-attr]
+                collected_text: list[str] = []
+
+                def on_event(event: CoreAgentEvent) -> None:
+                    if event.type == AgentEventType.MESSAGE_DELTA:
+                        data = event.data
+                        if isinstance(data, dict) and data.get("type") == "text":
+                            collected_text.append(data.get("text", ""))
+
+                assert self._agent is not None
+                unsub = self._agent.subscribe(on_event)
+                try:
+                    await self._agent.prompt(query)
+                finally:
+                    unsub()
+
+                result = "".join(collected_text)
                 return {"output": result, "result_type": "success"}
             except Exception as e:
                 last_exception = e
@@ -612,7 +639,7 @@ MEDIA:/tmp/screenshot_123.png
         Yields:
             AgentEvent: Agent 事件
         """
-        self._init_loop()
+        self._init_agent()
         self.reset_loop_detection()
 
         media_context = self._build_media_context()
@@ -629,9 +656,33 @@ MEDIA:/tmp/screenshot_123.png
             last_event = None
 
             try:
-                async for react_event in self._loop.stream(enhanced_query):  # type: ignore[union-attr]
-                    agent_event = self._convert_event(react_event)
+                # 用 asyncio.Queue 桥接 CoreAgent 的同步事件回调和异步迭代
+                event_queue: asyncio.Queue[Optional[AgentEvent]] = asyncio.Queue()
+
+                def on_core_event(core_event: CoreAgentEvent) -> None:
+                    agent_event = self._convert_event(core_event)
                     if agent_event:
+                        event_queue.put_nowait(agent_event)
+
+                assert self._agent is not None
+                unsub = self._agent.subscribe(on_core_event)
+
+                # 启动 prompt 任务
+                async def _run_prompt() -> None:
+                    try:
+                        assert self._agent is not None
+                        await self._agent.prompt(enhanced_query)
+                    finally:
+                        # 发送 sentinel 表示结束
+                        event_queue.put_nowait(None)
+
+                prompt_task = asyncio.create_task(_run_prompt())
+
+                try:
+                    while True:
+                        agent_event = await event_queue.get()
+                        if agent_event is None:
+                            break
                         last_event = agent_event
                         if agent_event.type == "content_chunk" and agent_event.data:
                             has_content = True
@@ -643,6 +694,14 @@ MEDIA:/tmp/screenshot_123.png
                                 should_retry = True
                                 break
                         yield agent_event
+                finally:
+                    unsub()
+                    if not prompt_task.done():
+                        prompt_task.cancel()
+                        try:
+                            await prompt_task
+                        except (asyncio.CancelledError, Exception):
+                            pass
 
                 if should_retry:
                     delay = min(base_delay * (2 ** attempt), max_delay)
@@ -679,41 +738,46 @@ MEDIA:/tmp/screenshot_123.png
 
     # ==================== 事件转换 ====================
 
-    def _convert_event(self, event: ReActEvent) -> Optional[AgentEvent]:
-        """将 ReActEvent 转换为 AgentEvent"""
-        if event.type == EventType.TEXT:
-            return AgentEvent(type="content_chunk", data=event.content)
-        elif event.type == EventType.THINKING:
-            return AgentEvent(type="thinking", data=event.content)
-        elif event.type == EventType.TOOL_CALL:
-            tool_info = {
-                "name": event.tool_name,
-                "arguments": event.tool_args,
-                "tool_call_id": event.tool_call_id,
-            }
-            self._track_tool_call(tool_info)
-            return AgentEvent(type="tool_call", data=tool_info)
-        elif event.type == EventType.TOOL_RESULT:
-            tool_result_payload = {
-                "result": event.content,
-                "tool_name": event.tool_name,
-                "tool_call_id": event.tool_call_id,
-            }
-            # 检测 write-rm 循环并注入警告
-            if not self._loop_warning_injected:
-                loop_warning = self._detect_write_rm_loop()
-                if loop_warning:
-                    tool_result_payload["result"] = (
-                        str(tool_result_payload.get("result", ""))
-                        + loop_warning
-                    )
-                    self._loop_warning_injected = True
-            return AgentEvent(type="tool_result", data=tool_result_payload)
-        elif event.type == EventType.ERROR:
-            return AgentEvent(type="error", data=event.content)
-        elif event.type == EventType.DONE:
-            if event.content:
-                return AgentEvent(type="content", data=event.content)
+    def _convert_event(self, event: CoreAgentEvent) -> Optional[AgentEvent]:
+        """将 CoreAgentEvent 转换为 LumosAgent 的 AgentEvent"""
+        if event.type == AgentEventType.MESSAGE_DELTA:
+            data = event.data
+            if isinstance(data, dict):
+                if data.get("type") == "text":
+                    return AgentEvent(type="content_chunk", data=data.get("text", ""))
+                elif data.get("type") == "thinking":
+                    return AgentEvent(type="thinking", data=data.get("thinking", ""))
+        elif event.type == AgentEventType.TOOL_START:
+            data = event.data
+            if isinstance(data, dict):
+                tool_info = {
+                    "name": data.get("name", ""),
+                    "arguments": data.get("arguments", {}),
+                    "tool_call_id": data.get("tool_call_id", ""),
+                }
+                self._track_tool_call(tool_info)
+                return AgentEvent(type="tool_call", data=tool_info)
+        elif event.type == AgentEventType.TOOL_END:
+            data = event.data
+            if isinstance(data, dict):
+                tool_result_payload = {
+                    "result": data.get("result", ""),
+                    "tool_name": data.get("name", ""),
+                    "tool_call_id": data.get("tool_call_id", ""),
+                }
+                if not self._loop_warning_injected:
+                    loop_warning = self._detect_write_rm_loop()
+                    if loop_warning:
+                        tool_result_payload["result"] = (
+                            str(tool_result_payload.get("result", ""))
+                            + loop_warning
+                        )
+                        self._loop_warning_injected = True
+                return AgentEvent(type="tool_result", data=tool_result_payload)
+        elif event.type == AgentEventType.ERROR:
+            return AgentEvent(type="error", data=event.data)
+        elif event.type == AgentEventType.AGENT_END:
+            return None
         return None
 
     # ==================== 错误处理 ====================

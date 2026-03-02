@@ -8,7 +8,7 @@ import os
 import asyncio
 import subprocess
 from typing import List, Optional
-from ..core.tool import Tool, ToolInfo, Parameters, Param
+from ..core.tool import Tool, ToolInfo, Parameters, Param, AgentTool, wrap_legacy_tool
 
 from ..agents.mode_manager import AgentModeManager, AgentMode
 from ..utils.platform_compat import (
@@ -1019,7 +1019,7 @@ def create_all_tools(
     model_name: str = "gpt-4o",
     subtask_event_callback=None,
     ws_manager=None
-) -> List[Tool]:
+) -> List[AgentTool]:
     """创建所有工具实例
 
     Args:
@@ -1112,7 +1112,8 @@ def create_all_tools(
     # 添加腾讯文档专用工具（快速版，直接 Playwright 脚本）
     tools.extend(create_tencent_docs_tools(mode_manager, headless=False))
 
-    return tools
+    # 批量包装为新 AgentTool 接口
+    return [wrap_legacy_tool(t) for t in tools]
 
 
 def create_tools_for_mode(
@@ -1124,7 +1125,7 @@ def create_tools_for_mode(
     model_name: str = "gpt-4o",
     subtask_event_callback=None,
     ws_manager=None
-) -> List[Tool]:
+) -> List[AgentTool]:
     """根据模式创建可用的工具
 
     Args:
