@@ -366,6 +366,7 @@ MEDIA:/tmp/screenshot_123.png
             "openai": "OPENAI_API_KEY",
             "zhipu": "ZHIPU_API_KEY",
             "openrouter": "OPENROUTER_API_KEY",
+            "siliconflow": "SILICONFLOW_API_KEY",
         }
         env_var = env_map.get(provider.lower())
         if env_var:
@@ -373,7 +374,8 @@ MEDIA:/tmp/screenshot_123.png
         return (os.getenv("OPENAI_API_KEY") or
                 os.getenv("ANTHROPIC_API_KEY") or
                 os.getenv("ZHIPU_API_KEY") or
-                os.getenv("OPENROUTER_API_KEY"))
+                os.getenv("OPENROUTER_API_KEY") or
+                os.getenv("SILICONFLOW_API_KEY"))
 
     def _get_default_api_base(self, provider: str) -> str:
         """获取默认 API Base"""
@@ -382,6 +384,7 @@ MEDIA:/tmp/screenshot_123.png
             "anthropic": "https://api.anthropic.com",
             "zhipu": "https://open.bigmodel.cn/api/paas/v4",
             "openrouter": "https://openrouter.ai/api/v1",
+            "siliconflow": "https://api.siliconflow.cn/v1",
         }
         return defaults.get(provider.lower(), "https://api.openai.com/v1")
 
@@ -919,6 +922,7 @@ def create_lumos_agent(
         "anthropic": "claude-sonnet-4-5-20250929",
         "zhipu": "glm-4",
         "openrouter": "zhipu/glm-4-plus",
+        "siliconflow": "deepseek-ai/DeepSeek-V3",
     }
 
     model_name = model or default_models.get(provider.lower(), "gpt-4o")
@@ -950,6 +954,9 @@ def create_agent_from_env() -> LumosAgent:
     elif os.getenv("OPENROUTER_API_KEY"):
         provider = "openrouter"
         api_key = os.getenv("OPENROUTER_API_KEY")
+    elif os.getenv("SILICONFLOW_API_KEY"):
+        provider = "siliconflow"
+        api_key = os.getenv("SILICONFLOW_API_KEY")
     elif os.getenv("ANTHROPIC_API_KEY"):
         provider = "anthropic"
         api_key = os.getenv("ANTHROPIC_API_KEY")

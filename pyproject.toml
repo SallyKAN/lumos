@@ -43,6 +43,7 @@ dependencies = [
 
     # Web 工具
     "html2text>=2024.2.26",
+    "httpx[socks]>=0.25.0",
 ]
 
 [project.optional-dependencies]

@@ -34,22 +34,32 @@ REVIEW 模式 → 批量审 PR，漏洞 Bug 无处藏
 
 ### 安装
 
+**一行命令，全局可用**（推荐）：
+
 ```bash
-# 1. 克隆项目
-git clone https://github.com/SallyKAN/lumos.git
-cd lumos
+# 安装 pipx（如未安装）
+brew install pipx   # macOS
+# 或: pip install pipx（Linux / Windows）
 
-# 2. 创建虚拟环境（需要 Python 3.10+）
-python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# 从 GitHub 一键安装 lumos
+pipx install git+https://github.com/SallyKAN/lumos.git
 
-# 3. 安装依赖
-pip install --upgrade pip
-pip install -e .
-
-# 4. 验证安装
+# 验证
 lumos --version
 ```
+
+安装完成后，`lumos` 在任意路径下均可直接使用，无需激活虚拟环境。
+
+<details>
+<summary>本地开发安装</summary>
+
+```bash
+git clone https://github.com/SallyKAN/lumos.git
+cd lumos
+pipx install .
+```
+
+</details>
 
 ### 配置 API Key
 
@@ -60,15 +70,26 @@ lumos --config
 # 方式 2：环境变量
 export ANTHROPIC_API_KEY="your-api-key"    # Anthropic Claude
 export OPENAI_API_KEY="your-api-key"       # OpenAI
+export SILICONFLOW_API_KEY="your-api-key"  # 硅基流动（国产·超低价）
 
 # 方式 3：配置文件（~/.lumos/config.yaml）
 cat << EOF > ~/.lumos/config.yaml
-provider: "openai"
+provider: "siliconflow"
 api_key: "your-api-key"
-api_base_url: "https://api.openai.com/v1"
-model: "gpt-4o"
+api_base_url: "https://api.siliconflow.cn/v1"
+model: "deepseek-ai/DeepSeek-V3"
 EOF
 ```
+
+**支持的提供商：**
+
+| 提供商 | provider 值 | 默认模型 | API Key 获取 |
+|--------|------------|---------|-------------|
+| Anthropic | `anthropic` | claude-sonnet-4-5 | [console.anthropic.com](https://console.anthropic.com) |
+| OpenAI | `openai` | gpt-4o | [platform.openai.com](https://platform.openai.com) |
+| 硅基流动 | `siliconflow` | deepseek-ai/DeepSeek-V3 | [cloud.siliconflow.cn](https://cloud.siliconflow.cn) |
+| 智谱 | `zhipu` | glm-4 | [open.bigmodel.cn](https://open.bigmodel.cn) |
+| 自定义 | `custom` | — | 任何 OpenAI 兼容接口 |
 
 ### 使用
 

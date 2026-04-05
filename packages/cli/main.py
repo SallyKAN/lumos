@@ -112,6 +112,7 @@ def get_default_api_base(provider: str) -> str:
         "anthropic": "https://api.anthropic.com",
         "openai": "https://api.openai.com/v1",
         "zhipu": "https://open.bigmodel.cn/api/paas/v4",
+        "siliconflow": "https://api.siliconflow.cn/v1",
         "custom": ""
     }
     return defaults.get(provider, "")
@@ -123,6 +124,7 @@ def get_default_model(provider: str) -> str:
         "anthropic": "claude-sonnet-4-5-20250929",
         "openai": "gpt-4o",
         "zhipu": "glm-4",
+        "siliconflow": "deepseek-ai/DeepSeek-V3",
         "custom": ""
     }
     return defaults.get(provider, "")
@@ -163,6 +165,7 @@ def get_config() -> dict:
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
             "zhipu": "ZHIPU_API_KEY",
+            "siliconflow": "SILICONFLOW_API_KEY",
         }
         env_var = env_key_map.get(config["provider"])
         if env_var:
@@ -171,7 +174,8 @@ def get_config() -> dict:
         if not config["api_key"]:
             config["api_key"] = (os.environ.get("ANTHROPIC_API_KEY") or
                                  os.environ.get("OPENAI_API_KEY") or
-                                 os.environ.get("ZHIPU_API_KEY"))
+                                 os.environ.get("ZHIPU_API_KEY") or
+                                 os.environ.get("SILICONFLOW_API_KEY"))
 
     # 3. 如果配置文件没有 api_base_url，从环境变量读取
     if not config["api_base_url"]:
@@ -251,8 +255,9 @@ def prompt_api_key_setup() -> bool:
     print(f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 选择 API 提供商:")
     print(f"    {Colors.BRIGHT_WHITE}1{Colors.RESET}. Anthropic (Claude)")
     print(f"    {Colors.BRIGHT_WHITE}2{Colors.RESET}. OpenAI (GPT)")
-    print(f"    {Colors.BRIGHT_WHITE}3{Colors.RESET}. 智谱 (GLM-4) {Colors.DIM}[国产推荐]{Colors.RESET}")
-    print(f"    {Colors.BRIGHT_WHITE}4{Colors.RESET}. 其他 (自定义)")
+    print(f"    {Colors.BRIGHT_WHITE}3{Colors.RESET}. 硅基流动 (SiliconFlow) {Colors.DIM}[国产推荐·超低价]{Colors.RESET}")
+    print(f"    {Colors.BRIGHT_WHITE}4{Colors.RESET}. 智谱 (GLM-4)")
+    print(f"    {Colors.BRIGHT_WHITE}5{Colors.RESET}. 其他 (自定义)")
     print()
 
     provider = "anthropic"
@@ -261,7 +266,7 @@ def prompt_api_key_setup() -> bool:
 
     while True:
         try:
-            choice = input(f"  {Colors.DIM}请输入选项 (1-4) [1]:{Colors.RESET} ").strip()
+            choice = input(f"  {Colors.DIM}请输入选项 (1-5) [1]:{Colors.RESET} ").strip()
             if choice in ('', '1'):
                 provider = "anthropic"
                 model = get_default_model("anthropic")
@@ -271,14 +276,18 @@ def prompt_api_key_setup() -> bool:
                 model = get_default_model("openai")
                 break
             elif choice == '3':
+                provider = "siliconflow"
+                model = get_default_model("siliconflow")
+                break
+            elif choice == '4':
                 provider = "zhipu"
                 model = get_default_model("zhipu")
                 break
-            elif choice == '4':
+            elif choice == '5':
                 provider = "custom"
                 break
             else:
-                print(f"  {Colors.RED}无效选项，请输入 1-4{Colors.RESET}")
+                print(f"  {Colors.RED}无效选项，请输入 1-5{Colors.RESET}")
         except (KeyboardInterrupt, EOFError):
             print()
             return False
@@ -311,6 +320,7 @@ def prompt_api_key_setup() -> bool:
         "anthropic": "Anthropic API Key",
         "openai": "OpenAI API Key",
         "zhipu": "智谱 API Key",
+        "siliconflow": "硅基流动 API Key",
         "custom": "API Key"
     }.get(provider, "API Key")
 
@@ -343,6 +353,26 @@ def prompt_api_key_setup() -> bool:
             print()
             return False
 
+    # 输入 Model Name
+    print()
+    default_model = model or get_default_model(provider) or ""
+    print(f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 请输入模型名称:")
+    if default_model:
+        print(f"  {Colors.DIM}按 Enter 使用默认值: {default_model}{Colors.RESET}")
+    else:
+        print(f"  {Colors.DIM}例如: deepseek-ai/DeepSeek-V3 / gpt-4o / glm-4{Colors.RESET}")
+    print()
+
+    try:
+        model_input = input(f"  {Colors.DIM}Model:{Colors.RESET} ").strip()
+        if model_input:
+            model = model_input
+        elif default_model:
+            model = default_model
+    except (KeyboardInterrupt, EOFError):
+        print()
+        return False
+
     # 保存配置
     print()
     print(f"  {Colors.DIM}正在保存配置...{Colors.RESET}")
@@ -356,7 +386,8 @@ def prompt_api_key_setup() -> bool:
         env_var = {
             "anthropic": "ANTHROPIC_API_KEY",
             "openai": "OPENAI_API_KEY",
-            "zhipu": "ZHIPU_API_KEY"
+            "zhipu": "ZHIPU_API_KEY",
+            "siliconflow": "SILICONFLOW_API_KEY"
         }.get(provider, "API_KEY")
         os.environ[env_var] = api_key
         if api_base_url:
@@ -539,7 +570,9 @@ class LumosCLI:
             )
 
         except Exception as e:
-            self._print(f"  {Colors.BRIGHT_YELLOW}⚠{Colors.RESET} Agent 初始化警告: {e}")
+            import traceback
+            self._print(f"  {Colors.BRIGHT_YELLOW}⚠{Colors.RESET} Agent 初始化失败: {e}")
+            traceback.print_exc()
             self.agent = None
 
     def _print(self, text: str, **kwargs):

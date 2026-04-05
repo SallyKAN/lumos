@@ -47,10 +47,9 @@ class BaseTool(ABC):
     description: str = ""
     params: list[ToolParam] = []
 
-    @abstractmethod
     async def execute(self, **kwargs) -> str:
-        """执行工具，子类必须实现"""
-        ...
+        """执行工具，子类应实现此方法或 ainvoke()"""
+        raise NotImplementedError(f"{self.__class__.__name__} 未实现 execute()")
 
     def to_openai_schema(self) -> dict:
         """转换为 OpenAI function calling 格式"""
