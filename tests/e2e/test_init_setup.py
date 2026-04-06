@@ -63,55 +63,61 @@ class TestLumosInit:
 
 class TestLumosSetup:
     def test_setup_creates_workspace_structure(self, tmp_path):
-        ws = tmp_path / "lumos"
-        result = run_setup(global_path=ws)
+        root = tmp_path / "lumos"
+        result = run_setup(global_path=root)
         assert "Created" in result
+        ws = root / "workspace"
         assert (ws / "IDENTITY.md").is_file()
         assert (ws / "AGENT.md").is_file()
         assert (ws / "USER.md").is_file()
+        assert (ws / "MEMORY.md").is_file()
+        assert (ws / "TOOLS.md").is_file()
+        assert (ws / "HEARTBEAT.md").is_file()
         assert (ws / "memory").is_dir()
-        assert (ws / "packages").is_dir()
-        assert (ws / "config").is_dir()
+        assert (root / "packages").is_dir()
+        assert (root / "config").is_dir()
 
     def test_setup_with_user_name(self, tmp_path):
-        ws = tmp_path / "lumos"
-        run_setup(global_path=ws, user_name="Alice")
-        content = (ws / "USER.md").read_text()
+        root = tmp_path / "lumos"
+        run_setup(global_path=root, user_name="Alice")
+        content = (root / "workspace" / "USER.md").read_text()
         assert "Alice" in content
 
     def test_setup_with_timezone(self, tmp_path):
-        ws = tmp_path / "lumos"
-        run_setup(global_path=ws, timezone="Asia/Tokyo")
-        content = (ws / "USER.md").read_text()
+        root = tmp_path / "lumos"
+        run_setup(global_path=root, timezone="Asia/Tokyo")
+        content = (root / "workspace" / "USER.md").read_text()
         assert "Tokyo" in content or "Asia" in content
 
     def test_setup_no_overwrite_existing(self, tmp_path):
-        ws = tmp_path / "lumos"
+        root = tmp_path / "lumos"
+        ws = root / "workspace"
         ws.mkdir(parents=True)
         (ws / "IDENTITY.md").write_text("# custom identity")
         (ws / "AGENT.md").write_text("# custom agent")
         (ws / "USER.md").write_text("# custom user")
         (ws / "MEMORY.md").write_text("# custom memory")
         (ws / "TOOLS.md").write_text("# custom tools")
+        (ws / "HEARTBEAT.md").write_text("# custom heartbeat")
         (ws / "memory").mkdir()
-        (ws / "packages").mkdir()
-        (ws / "config").mkdir()
-        (ws / "config" / "lumos.yaml").write_text("# existing\n")
-        result = run_setup(global_path=ws)
+        (root / "packages").mkdir(parents=True)
+        (root / "config").mkdir(parents=True)
+        (root / "config" / "lumos.yaml").write_text("# existing\n")
+        result = run_setup(global_path=root)
         assert "already" in result.lower() or "exists" in result.lower()
         assert (ws / "IDENTITY.md").read_text() == "# custom identity"
 
     def test_setup_idempotent_second_call(self, tmp_path):
-        ws = tmp_path / "lumos"
-        run_setup(global_path=ws, user_name="Bob")
-        result2 = run_setup(global_path=ws, user_name="Bob")
+        root = tmp_path / "lumos"
+        run_setup(global_path=root, user_name="Bob")
+        result2 = run_setup(global_path=root, user_name="Bob")
         # Second call should not crash
         assert result2 is not None
 
     def test_setup_creates_memory_files(self, tmp_path):
-        ws = tmp_path / "lumos"
-        run_setup(global_path=ws)
-        memory_dir = ws / "memory"
+        root = tmp_path / "lumos"
+        run_setup(global_path=root)
+        memory_dir = root / "workspace" / "memory"
         assert memory_dir.is_dir()
         # learnings.jsonl may be created empty
         learnings = memory_dir / "learnings.jsonl"

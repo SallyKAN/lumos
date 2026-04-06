@@ -356,21 +356,27 @@ class TestSetupCmd:
     def test_setup_creates_files(self, tmp_path):
         result = run_setup(global_path=tmp_path / "lumos", user_name="Snape", timezone="Asia/Shanghai")
         assert "Created" in result
-        assert (tmp_path / "lumos" / "IDENTITY.md").is_file()
-        assert (tmp_path / "lumos" / "USER.md").is_file()
-        assert "Snape" in (tmp_path / "lumos" / "USER.md").read_text()
+        ws = tmp_path / "lumos" / "workspace"
+        assert (ws / "IDENTITY.md").is_file()
+        assert (ws / "USER.md").is_file()
+        assert (ws / "MEMORY.md").is_file()
+        assert (ws / "TOOLS.md").is_file()
+        assert (ws / "HEARTBEAT.md").is_file()
+        assert "Snape" in (ws / "USER.md").read_text()
 
     def test_setup_no_overwrite(self, tmp_path):
-        ws = tmp_path / "lumos"
+        root = tmp_path / "lumos"
+        ws = root / "workspace"
         ws.mkdir(parents=True)
         (ws / "IDENTITY.md").write_text("custom")
         (ws / "AGENT.md").write_text("custom")
         (ws / "USER.md").write_text("custom")
         (ws / "MEMORY.md").write_text("custom")
         (ws / "TOOLS.md").write_text("custom")
+        (ws / "HEARTBEAT.md").write_text("custom")
         (ws / "memory").mkdir(exist_ok=True)
-        (ws / "packages").mkdir(exist_ok=True)
-        (ws / "config").mkdir(exist_ok=True)
-        (ws / "config" / "lumos.yaml").write_text("# existing config\n")
-        result = run_setup(global_path=ws)
+        (root / "packages").mkdir(exist_ok=True)
+        (root / "config").mkdir(exist_ok=True)
+        (root / "config" / "lumos.yaml").write_text("# existing config\n")
+        result = run_setup(global_path=root)
         assert "already exists" in result.lower()

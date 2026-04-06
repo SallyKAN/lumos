@@ -40,7 +40,7 @@ class WorkspaceLoader:
         project_root: Optional[Path] = None,
         cwd: Optional[Path] = None,
     ):
-        self._global_path = global_path or Path.home() / ".lumos"
+        self._global_path = global_path or Path.home() / ".lumos" / "workspace"
         self._project_root = project_root
         self._cwd = cwd or project_root
 
