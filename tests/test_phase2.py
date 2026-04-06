@@ -369,5 +369,6 @@ class TestSetupCmd:
         (ws / "memory").mkdir(exist_ok=True)
         (ws / "packages").mkdir(exist_ok=True)
         (ws / "config").mkdir(exist_ok=True)
+        (ws / "config" / "lumos.yaml").write_text("# existing config\n")
         result = run_setup(global_path=ws)
         assert "already exists" in result.lower()

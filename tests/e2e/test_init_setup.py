@@ -94,6 +94,7 @@ class TestLumosSetup:
         (ws / "memory").mkdir()
         (ws / "packages").mkdir()
         (ws / "config").mkdir()
+        (ws / "config" / "lumos.yaml").write_text("# existing\n")
         result = run_setup(global_path=ws)
         assert "already" in result.lower() or "exists" in result.lower()
         assert (ws / "IDENTITY.md").read_text() == "# custom identity"
