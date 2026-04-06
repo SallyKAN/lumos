@@ -2168,24 +2168,126 @@ async def run_non_interactive(config: dict, query: str):
         sys.exit(1)
 
 
+def _check_first_run():
+    """首次启动检测：workspace 不存在时引导 setup"""
+    from pathlib import Path
+    workspace = Path.home() / ".lumos" / "workspace"
+    if not workspace.is_dir() or not (workspace / "IDENTITY.md").is_file():
+        print()
+        print(f"  {Colors.BRIGHT_CYAN}✨ 欢迎使用 Lumos!{Colors.RESET}")
+        print(f"  {Colors.DIM}检测到尚未初始化 workspace{Colors.RESET}")
+        print()
+        try:
+            response = input(
+                f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 是否现在初始化? "
+                f"{Colors.DIM}(Y/n){Colors.RESET} "
+            ).strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            print()
+            return
+        if response not in ('n', 'no', '否'):
+            from packages.server.cli.setup_cmd import run_setup
+            try:
+                import tzlocal
+                timezone = str(tzlocal.get_localzone())
+            except Exception:
+                timezone = "UTC"
+            try:
+                name = input(f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 你的名字: ").strip() or "User"
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+            result = run_setup(user_name=name, timezone=timezone)
+            print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+            print()
+
+
+def _handle_harness_command(args):
+    """处理 lumos harness 子命令"""
+    from pathlib import Path
+    from packages.server.harness.manager import HarnessManager
+
+    mgr = HarnessManager()
+    action = getattr(args, 'harness_action', None)
+
+    if action == 'list':
+        harnesses = mgr.list_installed()
+        if not harnesses:
+            print(f"  {Colors.DIM}没有已安装的 Harness{Colors.RESET}")
+        else:
+            current = mgr.current()
+            for h in harnesses:
+                marker = f" {Colors.BRIGHT_GREEN}← active{Colors.RESET}" if h == current else ""
+                print(f"  {h}{marker}")
+
+    elif action == 'current':
+        current = mgr.current()
+        if current:
+            print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {current}")
+        else:
+            print(f"  {Colors.DIM}没有活跃的 Harness{Colors.RESET}")
+
+    elif action == 'install':
+        result = mgr.install(args.path)
+        print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+
+    elif action == 'use':
+        result = mgr.use(args.name)
+        print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+
+    elif action == 'uninstall':
+        result = mgr.uninstall(args.name)
+        print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+
+    else:
+        print(f"  用法: lumos harness {{list|current|install|use|uninstall}}")
+
+
 def main():
     """主入口函数 - lumos 命令"""
     import argparse
 
     parser = argparse.ArgumentParser(
         prog='lumos',
-        description='Lumos - AI 编程助手',
+        description='Lumos - 自优化 AI 编程助手',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
   lumos                    启动交互式会话
   lumos "你的问题"         非交互式执行
   lumos -p "你的问题"      非交互式执行
+  lumos setup              初始化全局 workspace (~/.lumos/workspace/)
+  lumos init               初始化项目 (生成 LUMOS.md)
+  lumos harness list       列出已安装的 Harness Packages
   lumos --config           配置 API Key
   lumos --test             运行快速测试
         '''
     )
-    parser.add_argument('query', nargs='?', help='直接执行的查询（非交互式）')
+
+    subparsers = parser.add_subparsers(dest='command', required=False, help='子命令')
+
+    # lumos setup
+    setup_parser = subparsers.add_parser('setup', help='初始化全局 workspace (~/.lumos/workspace/)')
+    setup_parser.add_argument('--name', default=None, help='你的名字')
+    setup_parser.add_argument('--timezone', default=None, help='时区 (如 Asia/Shanghai)')
+    setup_parser.add_argument('--force', action='store_true', help='覆盖已有文件')
+
+    # lumos init
+    init_parser = subparsers.add_parser('init', help='初始化项目 (生成 LUMOS.md)')
+    init_parser.add_argument('--root', default=None, help='项目根目录 (默认当前目录)')
+
+    # lumos harness
+    harness_parser = subparsers.add_parser('harness', help='Harness Package 管理')
+    harness_sub = harness_parser.add_subparsers(dest='harness_action', help='harness 子命令')
+    harness_sub.add_parser('list', help='列出已安装的 Harness')
+    harness_sub.add_parser('current', help='显示当前活跃的 Harness')
+    harness_install = harness_sub.add_parser('install', help='安装 Harness Package')
+    harness_install.add_argument('path', help='Harness 路径或 git URL')
+    harness_use = harness_sub.add_parser('use', help='激活 Harness')
+    harness_use.add_argument('name', help='Harness 名称')
+    harness_uninstall = harness_sub.add_parser('uninstall', help='卸载 Harness')
+    harness_uninstall.add_argument('name', help='Harness 名称')
+
     parser.add_argument('-p', '--prompt', help='直接执行的查询（非交互式）')
     parser.add_argument('--config', action='store_true', help='配置 API Key')
     parser.add_argument('--test', action='store_true', help='运行快速测试')
@@ -2193,12 +2295,61 @@ def main():
     parser.add_argument('--no-color', action='store_true', help='禁用颜色输出')
     parser.add_argument('--skip-welcome', action='store_true', help='跳过欢迎界面')
 
-    args = parser.parse_args()
+    # 预处理：如果第一个参数不是已知子命令或 flag，当作 positional query
+    known_commands = {'setup', 'init', 'harness'}
+    argv = sys.argv[1:]
+    positional_query = None
+    if argv and argv[0] not in known_commands and not argv[0].startswith('-'):
+        positional_query = argv[0]
+        argv = argv[1:]
+
+    args = parser.parse_args(argv)
+    args.query = positional_query
 
     if args.no_color:
         for attr in dir(Colors):
             if not attr.startswith('_'):
                 setattr(Colors, attr, '')
+
+    # ==================== 子命令处理 ====================
+
+    # lumos setup
+    if args.command == 'setup':
+        from packages.server.cli.setup_cmd import run_setup
+        import tzlocal
+        user_name = args.name
+        timezone = args.timezone
+        if not user_name:
+            try:
+                user_name = input(f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 你的名字: ").strip() or "User"
+            except (KeyboardInterrupt, EOFError):
+                print()
+                return
+        if not timezone:
+            try:
+                timezone = str(tzlocal.get_localzone())
+            except Exception:
+                timezone = "UTC"
+        result = run_setup(user_name=user_name, timezone=timezone, force=args.force)
+        print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+        return
+
+    # lumos init
+    if args.command == 'init':
+        from packages.server.cli.init_cmd import run_init
+        from pathlib import Path
+        root = Path(args.root) if args.root else Path.cwd()
+        result = run_init(project_root=root)
+        print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
+        return
+
+    # lumos harness <action>
+    if args.command == 'harness':
+        _handle_harness_command(args)
+        return
+
+    # ==================== 首次启动检测 ====================
+    _check_first_run()
 
     # 处理 --test 参数
     if args.test:
