@@ -91,6 +91,8 @@ class TestLumosSetup:
         (ws / "IDENTITY.md").write_text("# custom identity")
         (ws / "AGENT.md").write_text("# custom agent")
         (ws / "USER.md").write_text("# custom user")
+        (ws / "MEMORY.md").write_text("# custom memory")
+        (ws / "TOOLS.md").write_text("# custom tools")
         (ws / "memory").mkdir()
         (ws / "packages").mkdir()
         (ws / "config").mkdir()

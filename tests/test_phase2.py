@@ -366,6 +366,8 @@ class TestSetupCmd:
         (ws / "IDENTITY.md").write_text("custom")
         (ws / "AGENT.md").write_text("custom")
         (ws / "USER.md").write_text("custom")
+        (ws / "MEMORY.md").write_text("custom")
+        (ws / "TOOLS.md").write_text("custom")
         (ws / "memory").mkdir(exist_ok=True)
         (ws / "packages").mkdir(exist_ok=True)
         (ws / "config").mkdir(exist_ok=True)

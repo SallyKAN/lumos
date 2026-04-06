@@ -470,7 +470,7 @@ MEDIA:/tmp/screenshot_123.png
         # 检查是否有任何 workspace 文件存在
         has_workspace = any(
             self._workspace_loader.load_file(f)
-            for f in ["IDENTITY.md", "AGENT.md", "USER.md", "LUMOS.md"]
+            for f in ["IDENTITY.md", "AGENT.md", "USER.md", "LUMOS.md", "MEMORY.md"]
         )
 
         if has_workspace:

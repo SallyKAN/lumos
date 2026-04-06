@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 PROJECT_INSTRUCTION_FILES = ["LUMOS.md", "CLAUDE.md"]
 
 # 全局 workspace 文件
-WORKSPACE_FILES = ["AGENT.md", "IDENTITY.md", "USER.md", "TOOLS.md"]
+WORKSPACE_FILES = ["AGENT.md", "IDENTITY.md", "USER.md", "TOOLS.md", "MEMORY.md"]
 
 
 class WorkspaceLoader:

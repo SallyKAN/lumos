@@ -144,10 +144,19 @@ class PromptComposer:
             compressible=True, source="mode",
         ))
 
-        # L8: 活跃记忆
+        # L8: 活跃记忆（长期策展 MEMORY.md + 自动合成 active_insights.md）
+        memory_parts = []
+        # 长期策展记忆
+        curated_memory = self._load_workspace_file("MEMORY.md")
+        if curated_memory and curated_memory.strip():
+            memory_parts.append(curated_memory.strip())
+        # 自动合成的洞察
+        if self._active_insights and self._active_insights.strip():
+            memory_parts.append(self._active_insights.strip())
+        memory_content = "\n\n".join(memory_parts)
         sections.append(PromptSection(
-            name="Self-Wisdom", content=self._active_insights or "", priority=8,
-            compressible=True, source="active_insights.md",
+            name="Memory", content=memory_content, priority=8,
+            compressible=True, source="MEMORY.md + active_insights.md",
         ))
 
         # L9: 运行时上下文

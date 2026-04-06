@@ -3,6 +3,20 @@ Lumos CLI — setup 命令
 
 全局初始化：交互式引导生成 ~/.lumos/ workspace 文件。
 非交互模式下使用默认值。
+
+Workspace 结构（参考 OpenClaw）：
+~/.lumos/
+├── IDENTITY.md          # L1: Agent 身份/人格
+├── AGENT.md             # L2: 行为规范 + 记忆策略 + 安全规则
+├── USER.md              # L3: 用户信息与偏好
+├── MEMORY.md            # 长期策展记忆（人工维护的精华）
+├── TOOLS.md             # 工具/环境本地配置
+├── memory/              # 记忆系统
+│   ├── learnings.jsonl  # 只追加的反思归档（机器写入）
+│   └── active_insights.md  # MemorySynthesizer 合成的活跃洞察
+├── packages/            # 已安装的 Harness Packages
+└── config/
+    └── lumos.yaml       # 全局配置
 """
 
 from __future__ import annotations
@@ -26,6 +40,12 @@ DEFAULT_IDENTITY = """\
 - 默认使用用户的语言回复
 - 技术术语保持英文（如 function、class、API）
 - 代码注释跟随项目现有风格
+
+## 连续性
+你每次 session 醒来都是全新的。Workspace 文件就是你的记忆：
+- 读取 MEMORY.md 获取长期上下文
+- 读取 memory/ 下的近期日志获取短期上下文
+- 重要的事情写入文件，不要只记在"脑子里"
 """
 
 DEFAULT_AGENT = """\
@@ -64,10 +84,17 @@ skill_use → 阅读指导 → todo_write 创建任务 → 立即执行
 - 遵循项目现有的代码风格
 - 优先使用 edit_file 做精确修改，而不是 write_file 重写整个文件
 
+## 记忆管理
+- 重要决策、用户偏好、项目上下文 → 写入 MEMORY.md
+- 每日工作记录 → 写入 memory/YYYY-MM-DD.md
+- 工具配置、环境信息 → 写入 TOOLS.md
+- 不要依赖"心理笔记"，文件 > 记忆
+
 ## 安全
 - 执行破坏性命令前先确认（rm -rf、DROP TABLE 等）
 - 不要在代码中硬编码密钥或密码
 - 操作生产环境前必须告知用户
+- 私密信息不外泄，在群聊中注意隐私边界
 """
 
 DEFAULT_USER = """\
@@ -80,8 +107,48 @@ DEFAULT_USER = """\
 - 回复语言：跟随用户输入语言
 - 代码风格：遵循项目现有规范
 
+## 技术栈
+<!-- 在这里添加你常用的语言、框架、工具 -->
+
 ## 备注
-<!-- 在这里添加你的个人偏好、常用技术栈、工作习惯等 -->
+<!-- 在这里添加你的个人偏好、工作习惯等 -->
+"""
+
+DEFAULT_MEMORY = """\
+# Long-Term Memory
+
+这是你的长期策展记忆。记录重要的决策、偏好、经验教训。
+
+与 active_insights.md（自动合成）不同，这个文件由你主动维护。
+定期回顾 memory/ 下的日志，把值得长期保留的内容提炼到这里。
+
+## 用户偏好
+<!-- 用户的习惯、喜好、工作方式 -->
+
+## 项目上下文
+<!-- 重要的项目决策、架构选择、技术栈 -->
+
+## 经验教训
+<!-- 踩过的坑、学到的东西、需要记住的模式 -->
+"""
+
+DEFAULT_TOOLS = """\
+# Tools
+
+Skills 定义工具的使用方式。这个文件记录你的本地环境配置。
+
+## 示例
+
+```markdown
+### SSH
+- home-server → 192.168.1.100, user: admin
+
+### 常用路径
+- 项目目录：~/projects/
+- 配置目录：~/.config/
+```
+
+在这里添加你的环境特定信息：设备名、SSH 地址、API 端点等。
 """
 
 DEFAULT_CONFIG = """\
@@ -115,6 +182,8 @@ def run_setup(
         "USER.md": DEFAULT_USER.format(
             user_name=user_name, timezone=timezone,
         ).strip() + "\n",
+        "MEMORY.md": DEFAULT_MEMORY.strip() + "\n",
+        "TOOLS.md": DEFAULT_TOOLS.strip() + "\n",
     }
 
     for name, content in files.items():
