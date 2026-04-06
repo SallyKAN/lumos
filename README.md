@@ -1,320 +1,329 @@
 # Lumos
 
-> 在代码的黑暗中为你照亮方向 — 你的终端 AI 编程助手
+> A self-evolving AI coding agent framework — observe, evaluate, optimize.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)](https://github.com/)
-[![Tests](https://img.shields.io/badge/tests-19%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-115%20passed-brightgreen.svg)](tests/)
 
-## 项目简介
+## What is Lumos?
 
-**Lumos** 是一个用自然语言驱动的终端 AI 编程助手，自建 ReAct Agent 核心，无外部 SDK 依赖。像哈利波特的荧光咒一样，在代码的黑暗中为你点亮方向。
+**Lumos** is a terminal AI coding agent with a built-in self-optimization loop. It doesn't just run LLM calls — it records every decision, evaluates the outcome, and tunes itself to get better over time.
+
+The core thesis: **Agent framework value = self-optimization infrastructure.** Models get stronger every quarter, but the scaffolding around them — the harness — determines the actual capability ceiling. The same Claude Sonnet scores 20+ points differently on SWE-bench depending on the harness wrapping it.
+
+Lumos makes that harness observable, evaluable, and optimizable.
 
 ```
-三大模式，从想法到上线全搞定
-
-BUILD 模式  → 放开手脚写代码，自动化一切
-PLAN 模式   → 大任务先出方案，你点头再动手
-REVIEW 模式 → 批量审 PR，漏洞 Bug 无处藏
+Observe  →  Evaluate  →  Optimize  →  Distribute
+   │            │            │             │
+Trajectory   Evaluator    Optimizer    Harness
+  Logger      (anchor)   (hill-climb)  Package
 ```
 
-### 核心能力
+## Architecture
 
-| 能力 | 说明 |
-|------|------|
-| **自建 ReAct 核心** | 零外部 SDK 依赖，完全自主的 Agent 循环 |
-| **Skill 插件系统** | 能力无限扩展，一键安装社区技能 |
-| **子Agent并行** | 上下文隔离，多任务同时执行 |
-| **浏览器自动化** | 网页操作也能搞定 |
-| **双模型路由** | 智能省钱，成本降 70% |
-| **跨平台** | Linux / macOS / Windows 通吃 |
+Lumos is built as a 7-layer stack. Each layer has a single responsibility:
 
-## 快速开始
+```
+┌─────────────────────────────────────────────────────────────┐
+│ L7  Optimization    Evaluator · Optimizer · BenchmarkRunner │
+├─────────────────────────────────────────────────────────────┤
+│ L6  Trajectory      TrajectoryLogger · JSONL · Replay       │
+├─────────────────────────────────────────────────────────────┤
+│ L5  Interceptor     10 lifecycle points · Onion model       │
+├─────────────────────────────────────────────────────────────┤
+│ L4  Orchestration   agent_loop · Agent · ModeManager        │
+├─────────────────────────────────────────────────────────────┤
+│ L3  Capability      PromptComposer · WorkspaceLoader        │
+│                     SkillManager · ToolRegistry             │
+├─────────────────────────────────────────────────────────────┤
+│ L2  Stream          StreamFn · EventStream · ModelRouter    │
+├─────────────────────────────────────────────────────────────┤
+│ L1  State           AgentState · Types · Queues             │
+└─────────────────────────────────────────────────────────────┘
+```
 
-### 安装
+### Key Design Decisions
 
-**一行命令，全局可用**（推荐）：
+- **Pure-function `agent_loop`** — stateless core, injectable everything. Zero SDK dependency.
+- **Interceptor = unified hooks + middleware** — one mechanism, 10 lifecycle points, onion model with `proceed()` chains. Replaces scattered hardcoded heuristics.
+- **Trajectory as first-class data** — every turn, tool call, and error is recorded as structured JSONL. This is the fuel for evaluation and optimization.
+- **Evaluator ≠ Agent** — evaluators are immutable anchors (Karpathy's `prepare.py` philosophy). They never ship inside a harness package. The judge and the player are always separate.
+- **Single-active Harness** — like Python venv, one harness active at a time. No implicit stacking, no merge conflicts. `lumos harness use <name>` to switch.
+
+## Harness Package
+
+A Harness Package bundles optimized agent behavior into an installable unit:
+
+```
+my-harness/
+├── HARNESS.yaml       # Manifest: metadata + provides + provenance
+├── interceptors/      # Lifecycle interceptors (Python or YAML shell)
+├── tools/             # LLM-callable tools (AgentTool)
+├── skills/            # Activatable behavior patterns (SKILL.md)
+├── prompts/           # Always-on prompt fragments
+└── config/            # Config overrides (model params, loop behavior)
+```
+
+5 directories, each with exactly one responsibility:
+
+| Directory | What | For whom | Not for |
+|---|---|---|---|
+| `interceptors/` | Code — intercept agent lifecycle | Harness runtime | Business logic tools |
+| `tools/` | Code — exposed to LLM via tool_use | LLM | System interception |
+| `skills/` | Prompt — activated on match | LLM | Always-on prompts |
+| `prompts/` | Prompt — always injected | LLM | Activatable instructions |
+| `config/` | Data — override defaults | Harness runtime | Any code |
 
 ```bash
-# 安装 pipx（如未安装）
-brew install pipx   # macOS
-# 或: pip install pipx（Linux / Windows）
+lumos harness install ./my-harness    # Install (doesn't activate)
+lumos harness use my-harness          # Activate (single-active)
+lumos harness current                 # Show active
+lumos harness list                    # List installed
+lumos harness compose \               # Merge two into one
+  --base swe-bench --mixin python-expert --name combined
+```
 
-# 从 GitHub 一键安装 lumos
+## Interceptor System
+
+10 lifecycle points, onion model execution:
+
+```
+before_agent → before_model → [wrap_model] → after_model
+                                    ↓
+             pre_tool_use → [wrap_tool] → post_tool_use
+                                    ↓
+                          on_stop → after_agent
+                          on_error (any phase)
+```
+
+Each interceptor is a Python class with a `priority` (0 = outermost, 100 = innermost). The engine builds an onion chain — outer interceptors wrap inner ones, each calling `proceed()` to continue or short-circuiting to block/transform.
+
+```python
+from packages.server.interceptor.base import BaseInterceptor
+
+class MyInterceptor(BaseInterceptor):
+    name = "my-interceptor"
+    priority = 50
+
+    async def pre_tool_use(self, request, proceed):
+        if request.tool_name == "bash" and "rm -rf" in str(request.arguments):
+            return ToolResult(is_error=True, content="Blocked: dangerous command")
+        return await proceed(request)
+```
+
+Built-in interceptors:
+- **TrajectoryLogger** (priority=1) — records all events to JSONL
+- **WriteRmLoopDetector** (priority=80) — detects write→delete anti-patterns
+
+## Workspace & System Prompt
+
+Lumos uses a layered workspace system for context injection:
+
+```
+~/.lumos/                        # Global workspace
+├── IDENTITY.md                  # Agent identity (name, personality)
+├── AGENT.md                     # Behavior rules
+├── USER.md                      # User preferences
+├── memory/                      # Memory system
+│   ├── learnings.jsonl          # Append-only reflections
+│   └── active_insights.md       # Synthesized insights (3-tier decay)
+├── packages/                    # Installed harness packages
+└── config/lumos.yaml            # Global config
+
+<project>/                       # Project workspace
+├── LUMOS.md                     # Project instructions (CLAUDE.md compatible)
+└── .lumos/
+    ├── config.yaml              # Project config
+    └── memory/                  # Project-level memory
+```
+
+**PromptComposer** assembles the system prompt from 9 layers (L1 highest priority → L9 lowest). When over token budget, L8→L5 get compressed first; L1-L3 are never compressed:
+
+| Layer | Source | Compressible |
+|---|---|---|
+| L1 Identity | IDENTITY.md | No |
+| L2 Rules | AGENT.md + built-in | No |
+| L3 User | USER.md | Light |
+| L4 Project | LUMOS.md | Light |
+| L5 Harness | Package prompts/ | Yes |
+| L6 Skill | Active skill prompt | Yes |
+| L7 Mode | BUILD/PLAN/REVIEW | Yes |
+| L8 Memory | active_insights.md | Yes |
+| L9 Runtime | cwd, git branch, etc. | Dynamic |
+
+Compatible with `CLAUDE.md` — Lumos searches for `LUMOS.md` first, falls back to `CLAUDE.md`.
+
+## Memory System
+
+Dual-track memory inspired by [yoyo-evolve](https://github.com/yologdev/yoyo-evolve):
+
+```
+Track 1: Structured Trajectory (machine-readable)
+  └─ TrajectoryLogger → JSONL → Evaluator → Optimizer
+
+Track 2: Natural Language Learnings (human-readable)
+  └─ Agent reflection → learnings.jsonl → MemorySynthesizer → active_insights.md
+```
+
+**MemorySynthesizer** applies 3-tier time decay:
+- **Recent** (< 2 weeks) — full lesson + context
+- **Medium** (2-8 weeks) — lessons grouped by theme
+- **Foundational** (> 8 weeks) — core principles, no dates
+
+The synthesized `active_insights.md` is injected into the system prompt at L8, giving the agent accumulated wisdom from past sessions.
+
+## Evaluation & Optimization
+
+The optimization loop is the core differentiator. Evaluators are immutable anchors — they never ship inside a harness. The judge and the player stay separate.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Harness Package (ships to users)                       │
+│  interceptors/ tools/ skills/ prompts/ config/          │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│  Optimization Workspace (developer-local, never ships)  │
+│  benchmarks/ evaluators/ trajectories/ scores.tsv .git/ │
+└─────────────────────────────────────────────────────────┘
+```
+
+```bash
+lumos optimize init --benchmark swe-bench-lite --harness ./my-harness
+lumos optimize run --rounds 20     # Hill-climbing: tweak → benchmark → keep or revert
+lumos optimize scores              # View score history
+lumos optimize export              # Export best harness as installable package
+```
+
+Each round: tweak harness config → run benchmark → evaluate → score improves? `git commit` (keep). Score drops? `git revert`. All tracked in `scores.tsv`.
+
+## Quick Start
+
+### Install
+
+```bash
 pipx install git+https://github.com/SallyKAN/lumos.git
-
-# 验证
 lumos --version
 ```
 
-安装完成后，`lumos` 在任意路径下均可直接使用，无需激活虚拟环境。
-
-<details>
-<summary>本地开发安装</summary>
+### Configure
 
 ```bash
-git clone https://github.com/SallyKAN/lumos.git
-cd lumos
-pipx install .
+lumos --config                     # Interactive setup
+
+# Or set environment variables
+export ANTHROPIC_API_KEY="..."     # Anthropic Claude
+export OPENAI_API_KEY="..."        # OpenAI
+export SILICONFLOW_API_KEY="..."   # SiliconFlow (budget-friendly)
 ```
 
-</details>
+Supported providers:
 
-### 配置 API Key
+| Provider | Default Model |
+|---|---|
+| Anthropic | claude-sonnet-4-5 |
+| OpenAI | gpt-4o |
+| SiliconFlow | deepseek-ai/DeepSeek-V3 |
+| ZhiPu | glm-4 |
+| Custom | Any OpenAI-compatible endpoint |
+
+### Use
 
 ```bash
-# 方式 1：交互式配置（推荐）
-lumos --config
-
-# 方式 2：环境变量
-export ANTHROPIC_API_KEY="your-api-key"    # Anthropic Claude
-export OPENAI_API_KEY="your-api-key"       # OpenAI
-export SILICONFLOW_API_KEY="your-api-key"  # 硅基流动（国产·超低价）
-
-# 方式 3：配置文件（~/.lumos/config.yaml）
-cat << EOF > ~/.lumos/config.yaml
-provider: "siliconflow"
-api_key: "your-api-key"
-api_base_url: "https://api.siliconflow.cn/v1"
-model: "deepseek-ai/DeepSeek-V3"
-EOF
+lumos                              # Interactive mode
+lumos "refactor this function"     # One-shot
+lumos -p "analyze project"         # With prompt flag
 ```
 
-**支持的提供商：**
-
-| 提供商 | provider 值 | 默认模型 | API Key 获取 |
-|--------|------------|---------|-------------|
-| Anthropic | `anthropic` | claude-sonnet-4-5 | [console.anthropic.com](https://console.anthropic.com) |
-| OpenAI | `openai` | gpt-4o | [platform.openai.com](https://platform.openai.com) |
-| 硅基流动 | `siliconflow` | deepseek-ai/DeepSeek-V3 | [cloud.siliconflow.cn](https://cloud.siliconflow.cn) |
-| 智谱 | `zhipu` | glm-4 | [open.bigmodel.cn](https://open.bigmodel.cn) |
-| 自定义 | `custom` | — | 任何 OpenAI 兼容接口 |
-
-### 使用
+### Initialize a Project
 
 ```bash
-# 交互式模式
-lumos
-
-# 非交互式
-lumos "帮我重构这个函数"
-lumos -p "分析项目结构"
+lumos init                         # Generate LUMOS.md (auto-detects language/framework)
+lumos setup                        # First-time global setup (~/.lumos/)
 ```
 
-### 系统要求
-
-- **Python**: 3.10+
-- **操作系统**: Linux / macOS / Windows 10+
-- **终端**: 支持 ANSI 颜色（Windows 推荐使用 Windows Terminal）
-
-## 核心工具集
-
-| 工具 | 功能 | 说明 |
-|------|------|------|
-| **ReadFile** | 读取文件 | 支持行号范围、大文件分页 |
-| **WriteFile** | 写入文件 | 完全覆盖模式 |
-| **EditFile** | 智能编辑 | 字符串替换，保留格式 |
-| **Bash** | Shell 执行 | 带安全检查、超时控制 |
-| **Grep** | 内容搜索 | 基于 ripgrep，支持正则 |
-| **Glob** | 文件匹配 | 支持 `**/*` 递归模式 |
-| **LS** | 目录列表 | 列出目录内容 |
-| **TodoWrite** | 任务管理 | 持久化任务列表 |
-| **WebFetch** | 网页抓取 | 获取网页内容 |
-| **WebSearch** | 网络搜索 | 搜索引擎集成 |
-| **SpawnSubAgent** | 子Agent | 并行任务，上下文隔离 |
-| **EnterPlanMode** | 规划模式 | 复杂任务先规划后执行 |
-| **BrowserAutomation** | 浏览器自动化 | 网页交互操作 |
-
-## 内置子Agent
-
-| 子Agent | 用途 | 特点 |
-|---------|------|------|
-| **Explore** | 代码库探索 | 快速搜索文件、代码关键词、理解项目结构 |
-| **Plan** | 方案规划 | 设计实现计划、识别关键文件、权衡架构方案 |
-| **Researcher** | 信息调研 | 网络搜索、竞品分析、技术调研 |
-| **CodeReviewer** | 代码审查 | 审查代码质量、安全漏洞、最佳实践 |
-| **Debugger** | 问题诊断 | 复杂问题诊断、根因分析、系统化排查 |
-| **Refactoring** | 代码重构 | 安全代码转换、设计模式应用、结构优化 |
-
-```
-┌──────────────────────────────────────────────┐
-│              主 Agent (Sonnet)               │
-│  - 任务分解与派发                             │
-│  - 结果汇总与报告生成                         │
-└──────────────┬───────────────────────────────┘
-               │ spawn_sub_agents()
-    ┌──────────┼──────────┐
-    ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐
-│子Agent1│ │子Agent2│ │子Agent3│
-│(Haiku) │ │(Haiku) │ │(Haiku) │
-│独立上下文│ │独立上下文│ │独立上下文│
-└────────┘ └────────┘ └────────┘
-```
-
-## 核心用例
-
-### BUILD 模式 - 一句话搞定开发
-
-```
-[BUILD] ❯ 帮我修复 src/utils.py 中的类型错误并补充单元测试
-
-● grep("TypeError", src/**/*.py)
-  ⎿ 找到 3 处相关代码
-
-● read_file(src/utils.py)
-  ⎿ 成功读取 (120 行)
-
-● 思考中...
-  发现问题：第 45 行参数类型不匹配
-
-● edit_file(src/utils.py)
-  ⎿ 修改成功
-
-● write_file(tests/test_utils.py)
-  ⎿ 写入测试文件
-
-● bash(pytest tests/test_utils.py -v)
-  ⎿ 3 passed
-```
-
-### PLAN 模式 - 复杂任务先规划再执行
-
-```
-[BUILD] ❯ 把项目的 docs 目录部署到文档网站
-
-● enter_plan_mode()
-  ⎿ 已进入 PLAN 模式
-
-● glob(docs/**/*.md)
-  ⎿ 找到 5 个文档文件
-
-● write_file(~/.lumos/plans/bright-calm-aurora.md)
-  ⎿ 写入实现计划
-
-请审批此计划:
-- 输入 'approve' 批准并切换到 BUILD 模式
-- 输入 'reject' 继续规划
-
-[用户输入] approve
-
-● 已切换到 BUILD 模式，开始执行计划...
-● bash(pip install mkdocs-material)
-● write_file(mkdocs.yml)
-
-✅ 部署完成！
-```
-
-### Skill 系统 - 可扩展能力
-
-```bash
-# 查看已安装 Skills
-[BUILD] ❯ /skills list
-
-📦 本地 Skills (~/.lumos/skills/)
-  - code-review: 代码审查专家
-  - git-commit: 智能提交助手
-
-# 安装社区插件
-[BUILD] ❯ /skills install example-skills@anthropics
-  ⎿ 安装完成！新增 12 个 skills
-
-# 使用 Skill
-[BUILD] ❯ /pdf 分析 report.pdf 并提取关键数据
-● 激活 Skill: pdf
-● read_file(report.pdf)
-  ⎿ 解析 PDF (32 页)
-```
-
-## 命令参考
-
-```bash
-/mode build|plan|review    # 切换模式
-/skills list               # 列出所有可用 skills
-/skills install <plugin>@<marketplace>  # 安装插件
-/help                      # 显示帮助
-/clear                     # 清除对话历史
-/exit                      # 退出程序
-```
-
-## 技术架构
-
-### 核心设计
-
-| 设计 | 说明 |
-|------|------|
-| **自建 ReAct Loop** | 直接调用 Anthropic/OpenAI API，无中间 SDK |
-| **双模型路由** | 主模型 (Sonnet) 40-50%，小模型 (Haiku) 50-60%，成本降 70% |
-| **子Agent隔离** | 每个子Agent独立会话，互不污染，结果聚合到主Agent |
-| **三层工具架构** | 低层(Read/Write/Bash) → 中层(Edit/Grep/Glob) → 高层(Task/TodoWrite) |
-| **模式权限控制** | BUILD 全权限，PLAN 只读+预授权，REVIEW 专注审查 |
-
-### 工具权限矩阵
-
-| 工具 | BUILD | PLAN | REVIEW |
-|------|-------|------|--------|
-| Read/Grep/Glob | ✅ | ✅ | ✅ |
-| Write/Edit | ✅ | ❌ | ❌ |
-| Bash | ✅ | ⚠️ 只读 | ❌ |
-| TodoWrite | ✅ | ✅ | ✅ |
-
-## 项目结构
+## Project Structure
 
 ```
 lumos/
 ├── packages/
 │   ├── server/
-│   │   ├── core/              # 自建核心 (ReAct Loop, LLM, Tool 抽象)
-│   │   ├── agents/            # Agent 实现 (LumosAgent, ModeManager)
-│   │   ├── tools/             # 工具集 (14+ 工具)
-│   │   ├── skills/            # Skills 系统 (loader/matcher/executor/installer)
-│   │   ├── prompts/           # System Prompts
-│   │   ├── context/           # 上下文管理
-│   │   └── api/               # Web API (FastAPI + WebSocket)
-│   └── cli/                   # TUI 客户端 (prompt-toolkit + Rich)
-├── tests/                     # 测试套件
-├── config/                    # 配置文件
+│   │   ├── core/                  # agent_loop, LLM, Tool, Types
+│   │   ├── agents/                # LumosAgent, ModeManager
+│   │   ├── interceptor/           # InterceptorEngine, Protocol, BaseInterceptor
+│   │   │   └── builtins/          # WriteRmLoopDetector
+│   │   ├── trajectory/            # TrajectoryLogger, TrajectoryReplay
+│   │   ├── capability/            # PromptComposer, WorkspaceLoader, ProjectScanner
+│   │   ├── harness/               # HarnessLoader, HarnessManager, Compose
+│   │   ├── memory/                # MemorySynthesizer
+│   │   ├── evaluator/             # Evaluator ABC, EfficiencyEvaluator
+│   │   │   └── builtins/
+│   │   ├── optimization/          # OptimizationWorkspace, BenchmarkRunner, Optimizer
+│   │   ├── tools/                 # 14+ built-in tools
+│   │   ├── skills/                # Skill system (loader/matcher/executor)
+│   │   └── api/                   # Web API (FastAPI + WebSocket)
+│   └── cli/                       # TUI client + init/setup/harness commands
+├── tests/                         # 115 tests
+├── docs/                          # Architecture & design docs
 └── pyproject.toml
 ```
 
-## 安全机制
-
-- 命令黑名单（`rm -rf /`, `mkfs`, `format C:` 等）
-- 路径限制（`/etc`, `/usr/bin`, `C:\Windows` 等）
-- PLAN 模式禁止破坏性命令
-- 超时控制（默认 120 秒）
-- 跨平台安全检查（自动适配 Linux/macOS/Windows）
-
-## 测试
+## CLI Reference
 
 ```bash
-# 运行所有测试
-pytest tests/ -v
+# Modes
+/mode build|plan|review
 
-# 查看测试覆盖率
+# Harness management
+lumos harness install <path|git-url>
+lumos harness use <name>
+lumos harness current
+lumos harness list
+lumos harness compose --base <a> --mixin <b> --name <out>
+lumos harness uninstall <name>
+
+# Optimization
+lumos optimize init --benchmark <name> --harness <path>
+lumos optimize run --rounds <N>
+lumos optimize scores
+lumos optimize export --output <path>
+
+# Project
+lumos init                         # Generate LUMOS.md
+lumos setup                        # Global workspace setup
+
+# Skills
+/skills list
+/skills install <plugin>@<marketplace>
+```
+
+## Testing
+
+```bash
+pytest tests/ -v                   # 115 tests, ~0.5s
 pytest --cov=packages/server --cov-report=html
 ```
 
-## 贡献
+## Roadmap
 
-欢迎贡献代码、报告问题或提出建议！
+- [x] **Phase 1** — InterceptorEngine + TrajectoryLogger + agent_loop integration
+- [x] **Phase 2** — Harness Package + Workspace + PromptComposer + Memory
+- [x] **Phase 3** — Evaluation & Optimization (Evaluator + BenchmarkRunner + Optimizer)
+- [ ] **Phase 4** — Ecosystem (Harness Registry, more interceptors/evaluators/benchmarks)
 
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+## License
 
-## 许可证
+MIT — see [LICENSE](LICENSE)
 
-本项目基于 MIT 许可证开源 - 详见 [LICENSE](LICENSE) 文件
+## Acknowledgments
 
-## 致谢
-
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) - 设计灵感来源
-- [Anthropic](https://www.anthropic.com/) / [OpenAI](https://openai.com/) - LLM 提供商
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — design inspiration
+- [yoyo-evolve](https://github.com/yologdev/yoyo-evolve) — memory system patterns
+- [OpenAI "The Scaffolding Matters"](https://arxiv.org/) — the thesis that harness determines capability ceiling
 
 ---
 
-**项目地址**: https://github.com/SallyKAN/lumos
+**Repository**: https://github.com/SallyKAN/lumos
