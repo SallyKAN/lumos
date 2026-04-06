@@ -58,9 +58,12 @@ class TestPromptComposer:
         assert "Python project" in prompt
 
     def test_fallback_when_no_files(self):
+        """没有 workspace 文件时，使用内置默认规则"""
         composer = PromptComposer(fallback_prompt="DEFAULT PROMPT")
         prompt = composer.compose()
-        assert prompt == "DEFAULT PROMPT"
+        # 现在即使没有 workspace 文件，也会用 BUILTIN_IDENTITY + BUILTIN_AGENT_RULES
+        assert "Lumos" in prompt
+        assert "工具" in prompt
 
     def test_compression_order(self):
         """L8 先被压缩，L1 不动"""

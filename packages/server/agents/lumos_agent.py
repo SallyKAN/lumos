@@ -344,7 +344,12 @@ MEDIA:/tmp/screenshot_123.png
         self.skill_manager.load_skills()
 
         # 系统提示词
+        self._custom_system_prompt = system_prompt  # 用户显式传入的 prompt（优先级最高）
         self.system_prompt = system_prompt or self.DEFAULT_SYSTEM_PROMPT
+
+        # Workspace & PromptComposer（v2 架构）
+        self._project_root_path = Path(project_root) if project_root else None
+        self._init_prompt_composer()
 
         # 工具列表（根据模式动态获取）
         self._tools: List = []
@@ -424,7 +429,18 @@ MEDIA:/tmp/screenshot_123.png
     # ==================== CoreAgent 初始化 ====================
 
     def _build_system_prompt(self) -> str:
-        """构建完整系统提示词（包含模式、skill 列表和激活的 skill 提示词）"""
+        """构建完整系统提示词
+
+        优先级：
+        1. 用户显式传入 system_prompt → 走老路径（拼接 mode + skill）
+        2. 有 PromptComposer → 委托给 Composer（9 层组装）
+        3. 都没有 → DEFAULT_SYSTEM_PROMPT + mode + skill
+        """
+        # 如果有 PromptComposer 且用户没有显式传入 prompt，走 v2 路径
+        if self._prompt_composer and not self._custom_system_prompt:
+            return self._compose_system_prompt_v2()
+
+        # v1 老路径：硬编码 prompt + 拼接
         full_prompt = self.system_prompt
 
         mode_suffix = self.mode_manager.get_mode_prompt_suffix()
@@ -440,6 +456,70 @@ MEDIA:/tmp/screenshot_123.png
             full_prompt = f"{full_prompt}\n\n{active_skill_suffix}"
 
         return full_prompt
+
+    def _init_prompt_composer(self):
+        """初始化 WorkspaceLoader + PromptComposer（v2 架构）"""
+        from ..capability.workspace_loader import WorkspaceLoader
+        from ..capability.prompt_composer import PromptComposer
+        from ..capability.builtin_rules import BUILTIN_IDENTITY, BUILTIN_AGENT_RULES
+
+        self._workspace_loader = WorkspaceLoader(
+            project_root=self._project_root_path,
+        )
+
+        # 检查是否有任何 workspace 文件存在
+        has_workspace = any(
+            self._workspace_loader.load_file(f)
+            for f in ["IDENTITY.md", "AGENT.md", "USER.md", "LUMOS.md"]
+        )
+
+        if has_workspace:
+            # 加载活跃记忆
+            active_insights = self._workspace_loader.load_memory("active_insights.md")
+
+            self._prompt_composer = PromptComposer(
+                workspace_loader=self._workspace_loader,
+                active_insights=active_insights,
+                fallback_prompt=self.DEFAULT_SYSTEM_PROMPT,
+            )
+        else:
+            # 没有 workspace 文件 → 不启用 Composer，走老路径
+            self._prompt_composer = None
+
+    def _compose_system_prompt_v2(self) -> str:
+        """v2 路径：通过 PromptComposer 9 层组装"""
+        import os
+
+        # 动态注入 mode / skill / runtime
+        mode_prompt = self.mode_manager.get_mode_prompt_suffix() or ""
+        skill_prompt = ""
+        skills_list = self.skill_manager.get_skills_prompt()
+        active_skill = self.skill_manager.get_prompt_suffix()
+        if skills_list:
+            skill_prompt += skills_list
+        if active_skill:
+            skill_prompt += "\n\n" + active_skill
+
+        # 更新 Composer 的动态字段
+        self._prompt_composer._mode_prompt = mode_prompt
+        self._prompt_composer._skill_prompt = skill_prompt
+
+        # Harness prompts（如果有 HarnessManager 的话）
+        if hasattr(self, '_harness_manager') and self._harness_manager:
+            harness_prompts = self._harness_manager.load_active_prompts()
+            self._prompt_composer._harness_prompts = harness_prompts
+
+        # 运行时上下文
+        runtime_context = {
+            "cwd": os.getcwd(),
+            "mode": self.mode_manager.current_mode.value,
+            "model": self.model_name,
+            "provider": self.model_provider,
+        }
+        if self._project_root_path:
+            runtime_context["project_root"] = str(self._project_root_path)
+
+        return self._prompt_composer.compose(runtime_context=runtime_context)
 
     def _init_agent(self, force_reinit: bool = False):
         """初始化 CoreAgent

@@ -2211,7 +2211,7 @@ def main():
                 model_name="test",
             )
             print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} Agent: 模式={agent.get_current_mode().value}")
-            print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} 工具: {list(agent.react_loop.tools.keys())}")
+            print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} 工具: {agent.get_available_tools()}")
             print(f"  {Colors.BRIGHT_GREEN}🎉 测试通过!{Colors.RESET}")
         except Exception as e:
             print(f"  {Colors.RED}❌ 测试失败: {e}{Colors.RESET}")

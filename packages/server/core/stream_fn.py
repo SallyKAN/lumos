@@ -174,7 +174,7 @@ async def stream_openai(
     tools: list[AgentTool],
     event_stream: EventStream[AgentEvent],
 ) -> AssistantMessage:
-    """OpenAI 兼容调用（非流式 fallback）"""
+    """OpenAI 兼容流式调用"""
     import openai
 
     client_kwargs: dict[str, Any] = {
@@ -192,52 +192,85 @@ async def stream_openai(
         "model": config.model,
         "messages": api_messages,
         "max_tokens": config.max_tokens,
+        "stream": True,
     }
     if tools:
         kwargs["tools"] = [t.to_openai_schema() for t in tools]
+        kwargs["stream_options"] = {"include_usage": True}
     if config.temperature is not None:
         kwargs["temperature"] = config.temperature
 
     event_stream.push(AgentEvent(type=AgentEventType.MESSAGE_START))
 
-    response = await client.chat.completions.create(**kwargs)
-    choice = response.choices[0]
-    msg = choice.message
-
     content_blocks: list = []
-    text = msg.content or ""
+    text_parts: list[str] = []
+    # tool call accumulation: index → {id, name, json}
+    tool_calls_acc: dict[int, dict] = {}
+    finish_reason = None
+    usage = None
 
-    if text:
-        content_blocks.append(TextContent(text=text))
-        event_stream.push(AgentEvent(
-            type=AgentEventType.MESSAGE_DELTA,
-            data={"type": "text", "text": text},
-        ))
+    stream = await client.chat.completions.create(**kwargs)
+    async for chunk in stream:
+        if chunk.usage:
+            u = chunk.usage
+            usage = {
+                "input_tokens": getattr(u, "prompt_tokens", 0),
+                "output_tokens": getattr(u, "completion_tokens", 0),
+            }
 
-    if msg.tool_calls:
-        for tc in msg.tool_calls:
-            try:
-                args = json.loads(tc.function.arguments)
-            except json.JSONDecodeError:
-                args = {}
-            content_blocks.append(ToolCallContent(
-                id=tc.id,
-                name=tc.function.name,
-                arguments=args,
+        if not chunk.choices:
+            continue
+
+        choice = chunk.choices[0]
+        if choice.finish_reason:
+            finish_reason = choice.finish_reason
+
+        delta = choice.delta
+
+        # text delta
+        if delta.content:
+            text_parts.append(delta.content)
+            event_stream.push(AgentEvent(
+                type=AgentEventType.MESSAGE_DELTA,
+                data={"type": "text", "text": delta.content},
             ))
 
-    usage = None
-    if hasattr(response, "usage") and response.usage:
-        u = response.usage
-        usage = {
-            "input_tokens": getattr(u, "prompt_tokens", 0),
-            "output_tokens": getattr(u, "completion_tokens", 0),
-        }
+        # tool call deltas
+        if delta.tool_calls:
+            for tc_delta in delta.tool_calls:
+                idx = tc_delta.index
+                if idx not in tool_calls_acc:
+                    tool_calls_acc[idx] = {"id": "", "name": "", "json": ""}
+                acc = tool_calls_acc[idx]
+                if tc_delta.id:
+                    acc["id"] = tc_delta.id
+                if tc_delta.function:
+                    if tc_delta.function.name:
+                        acc["name"] += tc_delta.function.name
+                    if tc_delta.function.arguments:
+                        acc["json"] += tc_delta.function.arguments
+
+    # build final text block
+    if text_parts:
+        content_blocks.append(TextContent(text="".join(text_parts)))
+
+    # build tool call blocks (sorted by index)
+    for idx in sorted(tool_calls_acc):
+        acc = tool_calls_acc[idx]
+        try:
+            args = json.loads(acc["json"]) if acc["json"] else {}
+        except json.JSONDecodeError:
+            args = {}
+        content_blocks.append(ToolCallContent(
+            id=acc["id"],
+            name=acc["name"],
+            arguments=args,
+        ))
 
     assistant_msg = AssistantMessage(
         content=content_blocks,
         usage=usage,
-        stop_reason=getattr(choice, "finish_reason", None),
+        stop_reason=finish_reason,
         model=config.model,
         provider=config.provider,
     )
@@ -251,7 +284,7 @@ async def stream_openai(
 # ============================================================================
 
 def get_default_stream_fn(config: LLMConfig) -> StreamFn:
-    """根据 provider 返回默认的流函数"""
+    """根据 provider 返回默认的流函数（均为流式实现）"""
     if config.provider == "anthropic":
         return stream_anthropic  # type: ignore[return-value]
     return stream_openai  # type: ignore[return-value]

@@ -93,19 +93,21 @@ class PromptComposer:
 
     def _collect_sections(self, runtime_context: dict) -> list[PromptSection]:
         """收集所有 9 层 section"""
+        from .builtin_rules import BUILTIN_IDENTITY, BUILTIN_AGENT_RULES
+
         sections: list[PromptSection] = []
 
-        # L1: 核心身份
-        identity = self._load_workspace_file("IDENTITY.md")
+        # L1: 核心身份（workspace 文件 > 内置默认）
+        identity = self._load_workspace_file("IDENTITY.md") or BUILTIN_IDENTITY
         sections.append(PromptSection(
-            name="Identity", content=identity or "", priority=1,
+            name="Identity", content=identity, priority=1,
             compressible=False, source="IDENTITY.md",
         ))
 
-        # L2: 行为规范
-        agent_rules = self._load_workspace_file("AGENT.md")
+        # L2: 行为规范（workspace 文件 > 内置默认）
+        agent_rules = self._load_workspace_file("AGENT.md") or BUILTIN_AGENT_RULES
         sections.append(PromptSection(
-            name="Agent Rules", content=agent_rules or "", priority=2,
+            name="Agent Rules", content=agent_rules, priority=2,
             compressible=False, source="AGENT.md",
         ))
 
