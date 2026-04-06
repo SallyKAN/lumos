@@ -2169,37 +2169,41 @@ async def run_non_interactive(config: dict, query: str):
 
 
 def _check_first_run():
-    """首次启动检测：workspace 不存在时引导 setup"""
+    """首次启动：静默初始化默认 workspace"""
+    pass  # 已移到 _ensure_workspace()
+
+
+def _ensure_workspace(workspace_path=None):
+    """确保 workspace 存在，不存在则静默创建
+
+    Args:
+        workspace_path: 自定义 workspace 路径，None 则用默认 ~/.lumos/workspace/
+    """
     from pathlib import Path
-    workspace = Path.home() / ".lumos" / "workspace"
-    if not workspace.is_dir() or not (workspace / "IDENTITY.md").is_file():
-        print()
-        print(f"  {Colors.BRIGHT_CYAN}✨ 欢迎使用 Lumos!{Colors.RESET}")
-        print(f"  {Colors.DIM}检测到尚未初始化 workspace{Colors.RESET}")
-        print()
+    from packages.server.cli.setup_cmd import run_setup
+
+    if workspace_path:
+        ws = Path(workspace_path)
+        global_path = ws.parent if ws.name == "workspace" else ws
+    else:
+        global_path = Path.home() / ".lumos"
+        ws = global_path / "workspace"
+
+    if not ws.is_dir() or not (ws / "IDENTITY.md").is_file():
+        # 静默初始化，使用系统默认值
         try:
-            response = input(
-                f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 是否现在初始化? "
-                f"{Colors.DIM}(Y/n){Colors.RESET} "
-            ).strip().lower()
-        except (KeyboardInterrupt, EOFError):
-            print()
-            return
-        if response not in ('n', 'no', '否'):
-            from packages.server.cli.setup_cmd import run_setup
-            try:
-                import tzlocal
-                timezone = str(tzlocal.get_localzone())
-            except Exception:
-                timezone = "UTC"
-            try:
-                name = input(f"  {Colors.BRIGHT_CYAN}?{Colors.RESET} 你的名字: ").strip() or "User"
-            except (KeyboardInterrupt, EOFError):
-                print()
-                return
-            result = run_setup(user_name=name, timezone=timezone)
-            print(f"  {Colors.BRIGHT_GREEN}✓{Colors.RESET} {result}")
-            print()
+            import tzlocal
+            timezone = str(tzlocal.get_localzone())
+        except Exception:
+            timezone = "UTC"
+        import getpass
+        try:
+            user_name = getpass.getuser()
+        except Exception:
+            user_name = "User"
+        run_setup(global_path=global_path, user_name=user_name, timezone=timezone)
+
+    return ws
 
 
 def _handle_harness_command(args):
@@ -2294,6 +2298,7 @@ def main():
     parser.add_argument('--version', action='version', version=f'Lumos v{VERSION}')
     parser.add_argument('--no-color', action='store_true', help='禁用颜色输出')
     parser.add_argument('--skip-welcome', action='store_true', help='跳过欢迎界面')
+    parser.add_argument('--workspace', default=None, help='自定义 workspace 路径 (默认 ~/.lumos/workspace/)')
 
     # 预处理：如果第一个参数不是已知子命令或 flag，当作 positional query
     known_commands = {'setup', 'init', 'harness'}
@@ -2349,7 +2354,7 @@ def main():
         return
 
     # ==================== 首次启动检测 ====================
-    _check_first_run()
+    _ensure_workspace(args.workspace)
 
     # 处理 --test 参数
     if args.test:
