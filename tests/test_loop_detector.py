@@ -1,9 +1,9 @@
 """T1.8 测试：WriteRmLoopDetector"""
 
 import pytest
-from packages.server.core.types import TextContent
-from packages.server.interceptor.types import ToolRequest, ToolResult
-from packages.server.interceptor.builtins.loop_detector import WriteRmLoopDetector, WARNING_MESSAGE
+from packages.core.types import TextContent
+from packages.interceptor.types import ToolRequest, ToolResult
+from packages.interceptor.builtins.loop_detector import WriteRmLoopDetector, WARNING_MESSAGE
 
 
 def _make_result(tool_name: str, arguments: dict | None = None) -> ToolResult:

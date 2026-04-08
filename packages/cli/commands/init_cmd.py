@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from ..capability.project_scanner import ProjectScanner
+from packages.capability.project_scanner import ProjectScanner
 
 # 项目指令文件搜索顺序（检测已有文件）
 EXISTING_FILES = ["LUMOS.md", "CLAUDE.md", "YOYO.md"]

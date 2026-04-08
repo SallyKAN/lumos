@@ -24,22 +24,22 @@ mypy packages/
 Lumos is a self-optimizing AI coding agent framework with a 7-layer stack:
 
 ```
-L7  Optimization   packages/server/evaluator/ + optimization/
-L6  Trajectory     packages/server/trajectory/
-L5  Interceptor    packages/server/interceptor/
-L4  Orchestration  packages/server/agents/  (agent_loop, ModeManager)
-L3  Capability     packages/server/capability/  (PromptComposer, WorkspaceLoader)
-L2  Stream         packages/server/core/  (StreamFn, ModelRouter)
-L1  State          packages/server/core/  (AgentState, Types)
+L7  Optimization   packages/optimization/  (evaluator/ + trajectory/ + benchmark/)
+L6  Trajectory     packages/optimization/trajectory/
+L5  Interceptor    packages/interceptor/
+L4  Orchestration  packages/agents/  (agent_loop, ModeManager)
+L3  Capability     packages/capability/  (PromptComposer, WorkspaceLoader)
+L2  Stream         packages/core/  (StreamFn, ModelRouter)
+L1  State          packages/core/  (AgentState, Types)
 ```
 
-Entry point: `packages/cli/main.py` → `packages/server/agents/` → `agent_loop` in `packages/server/core/`.
+Entry point: `packages/cli/main.py` → `packages/agents/` → `agent_loop` in `packages/core/`.
 
 ### Key design invariants
 
 - `agent_loop` is a **pure function** — stateless, injectable, zero SDK dependency. Don't add side effects to it directly; use interceptors instead.
 - **Interceptors** are the single extension point for lifecycle hooks. 10 lifecycle points, onion model with `proceed()` chains. Priority 0 = outermost, 100 = innermost. Built-ins: `TrajectoryLogger` (priority=1), `WriteRmLoopDetector` (priority=80).
-- **Evaluators never ship in harness packages** — the judge and the player must stay separate. Evaluators live in `packages/server/evaluator/`, harness packages live in `~/.lumos/packages/`.
+- **Evaluators never ship in harness packages** — the judge and the player must stay separate. Evaluators live in `packages/optimization/evaluator/`, harness packages live in `~/.lumos/packages/`.
 - **Single-active harness** — like Python venv. `lumos harness use <name>` to switch.
 
 ### Harness Package structure
@@ -68,7 +68,7 @@ my-harness/
 ### Writing a new interceptor
 
 ```python
-from packages.server.interceptor.base import BaseInterceptor
+from packages.interceptor.base import BaseInterceptor
 
 class MyInterceptor(BaseInterceptor):
     name = "my-interceptor"

@@ -5,13 +5,13 @@
 """
 import asyncio
 import pytest
-from packages.server.core.tool import (
+from packages.core.tool import (
     BaseTool, ToolParam, AgentTool, AgentToolResult, wrap_legacy_tool,
 )
-from packages.server.core.types import (
+from packages.core.types import (
     TextContent, AgentEvent, AgentEventType, LLMConfig, AgentLoopConfig,
 )
-from packages.server.core.event_stream import EventStream
+from packages.core.event_stream import EventStream
 
 
 # --- Test Tools ---

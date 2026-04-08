@@ -10,9 +10,9 @@ import pytest
 import yaml
 from pathlib import Path
 
-from packages.server.harness.manager import HarnessManager
-from packages.server.harness.loader import HarnessLoader
-from packages.server.harness.compose import compose_harness
+from packages.harness.manager import HarnessManager
+from packages.harness.loader import HarnessLoader
+from packages.harness.compose import compose_harness
 
 
 # ---------------------------------------------------------------------------

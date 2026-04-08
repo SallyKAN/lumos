@@ -9,8 +9,8 @@ import pytest
 import asyncio
 from pathlib import Path
 
-from packages.server.agents.lumos_agent import LumosAgent
-from packages.server.agents.mode_manager import AgentModeManager, AgentMode
+from packages.agents.lumos_agent import LumosAgent
+from packages.agents.mode_manager import AgentModeManager, AgentMode
 
 
 # ---------------------------------------------------------------------------

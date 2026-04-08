@@ -4,7 +4,7 @@ import json
 import pytest
 from pathlib import Path
 
-from packages.server.core.types import (
+from packages.core.types import (
     UserMessage,
     AssistantMessage,
     TextContent,
@@ -12,8 +12,8 @@ from packages.server.core.types import (
     LLMConfig,
     AgentLoopConfig,
 )
-from packages.server.interceptor.engine import InterceptorEngine
-from packages.server.interceptor.types import (
+from packages.interceptor.engine import InterceptorEngine
+from packages.interceptor.types import (
     AgentContext,
     ModelRequest,
     ModelResponse,
@@ -22,8 +22,8 @@ from packages.server.interceptor.types import (
     StopContext,
     AgentError,
 )
-from packages.server.trajectory.logger import TrajectoryLogger
-from packages.server.trajectory.replay import TrajectoryReplay
+from packages.optimization.trajectory.logger import TrajectoryLogger
+from packages.optimization.trajectory.replay import TrajectoryReplay
 
 
 def _make_llm_config():
@@ -144,7 +144,7 @@ class TestTrajectoryLogger:
         err = AgentError(exception=ValueError("boom"), phase="model")
 
         async def pass_err(e):
-            from packages.server.interceptor.types import ErrorRecovery
+            from packages.interceptor.types import ErrorRecovery
             return ErrorRecovery()
 
         await tl.error(err, pass_err)

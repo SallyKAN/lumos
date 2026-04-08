@@ -16,7 +16,7 @@ import yaml
 
 from .workspace import OptimizationWorkspace
 from .runner import BenchmarkRunner, RoundResult, AgentRunFn
-from ..evaluator.base import TaskSpec
+from .evaluator.base import TaskSpec
 
 logger = logging.getLogger(__name__)
 

@@ -14,8 +14,8 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 
-from ..interceptor.base import BaseInterceptor
-from ..interceptor.types import (
+from packages.interceptor.base import BaseInterceptor
+from packages.interceptor.types import (
     AgentContext,
     ModelRequest,
     ModelResponse,
@@ -146,7 +146,7 @@ class TrajectoryLogger(BaseInterceptor):
     async def post_tool_use(self, result: ToolResult, proceed):
         text = ""
         if result.content:
-            from ..core.types import TextContent
+            from packages.core.types import TextContent
             text = "".join(
                 b.text for b in result.content if isinstance(b, TextContent)
             )

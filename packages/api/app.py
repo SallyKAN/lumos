@@ -523,7 +523,7 @@ def main():
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     uvicorn.run(
-        "packages.server.api.app:app",
+        "packages.api.app:app",
         host=host,
         port=port,
         reload=debug,

@@ -98,8 +98,7 @@ npm run dev
 ### 启动后端
 
 ```bash
-cd packages/server
-PORT=19000 python -m packages.server.api.app
+PORT=19000 python -m packages.api.app
 ```
 
 ## 后端 API 要求

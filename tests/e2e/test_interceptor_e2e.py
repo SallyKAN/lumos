@@ -6,9 +6,9 @@ Key API facts (verified against source):
                   run_post_tool_use(result) → ToolResult
                   run_before_agent(context), run_after_agent(context)
 - Interceptor hooks: pre_tool_use(request, proceed), post_tool_use(result, proceed)
-- TrajectoryLogger: packages.server.trajectory.logger, __init__(output_dir, session_id)
-- WriteRmLoopDetector: packages.server.interceptor.builtins.loop_detector
-- ToolRequest/ToolResult: packages.server.interceptor.types
+- TrajectoryLogger: packages.optimization.trajectory.logger, __init__(output_dir, session_id)
+- WriteRmLoopDetector: packages.interceptor.builtins.loop_detector
+- ToolRequest/ToolResult: packages.interceptor.types
 """
 
 import asyncio
@@ -16,11 +16,11 @@ import json
 import pytest
 from pathlib import Path
 
-from packages.server.interceptor.engine import InterceptorEngine
-from packages.server.interceptor.base import BaseInterceptor
-from packages.server.interceptor.builtins.loop_detector import WriteRmLoopDetector
-from packages.server.interceptor.types import ToolRequest, ToolResult, AgentContext
-from packages.server.trajectory.logger import TrajectoryLogger
+from packages.interceptor.engine import InterceptorEngine
+from packages.interceptor.base import BaseInterceptor
+from packages.interceptor.builtins.loop_detector import WriteRmLoopDetector
+from packages.interceptor.types import ToolRequest, ToolResult, AgentContext
+from packages.optimization.trajectory.logger import TrajectoryLogger
 
 _ID = "test-call-id"
 

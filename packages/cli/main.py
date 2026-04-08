@@ -17,7 +17,7 @@ from prompt_toolkit.formatted_text import ANSI
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.patch_stdout import patch_stdout
 
-from packages.server.utils.platform_compat import set_file_permissions
+from packages.utils.platform_compat import set_file_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -541,7 +541,7 @@ class LumosCLI:
     def _init_session_manager(self):
         """初始化会话管理器"""
         try:
-            from packages.server.session.session_manager import SessionManager, migrate_todos_to_sessions
+            from packages.session.session_manager import SessionManager, migrate_todos_to_sessions
             self.session_manager = SessionManager()
 
             migrated = migrate_todos_to_sessions()
@@ -554,7 +554,7 @@ class LumosCLI:
     def _init_agent(self):
         """初始化 Lumos Agent"""
         try:
-            from packages.server.agents.lumos_agent import LumosAgent
+            from packages.agents.lumos_agent import LumosAgent
 
             api_key = self.config.get("api_key")
             provider = self.config.get("provider", "openai")
@@ -955,7 +955,7 @@ class LumosCLI:
         if not self.agent:
             self._print("[yellow]Agent 未初始化[/yellow]")
             return
-        from packages.server.agents.mode_manager import AgentMode
+        from packages.agents.mode_manager import AgentMode
         mode_map = {
             "build": AgentMode.BUILD,
             "plan": AgentMode.PLAN,
@@ -1134,7 +1134,7 @@ class LumosCLI:
             mode = "BUILD"
             if self.agent:
                 mode = self.agent.get_current_mode().value.upper()
-            from packages.server.session.session_manager import SessionMetadata
+            from packages.session.session_manager import SessionMetadata
             from datetime import datetime
             now = datetime.now().isoformat()
             metadata = SessionMetadata(
@@ -1280,7 +1280,7 @@ class LumosCLI:
                     try:
                         new_input = input_queue.get_nowait()
                         try:
-                            from packages.server.intent.intent_classifier import IntentClassifier, InterruptIntent
+                            from packages.agents.intent_classifier import IntentClassifier, InterruptIntent
                             classifier = IntentClassifier()
                             result = classifier.classify_sync(self._current_task_description, new_input)
                             if result.intent in (InterruptIntent.SWITCH, InterruptIntent.CANCEL, InterruptIntent.PAUSE, InterruptIntent.RESUME):
@@ -1347,7 +1347,7 @@ class LumosCLI:
                     self._pending_input = new_input
                     print(f"\n  {Colors.BRIGHT_YELLOW}● 收到新输入{Colors.RESET}")
                     try:
-                        from packages.server.intent.intent_classifier import IntentClassifier, InterruptIntent
+                        from packages.agents.intent_classifier import IntentClassifier, InterruptIntent
                         classifier = IntentClassifier()
                         result = classifier.classify_sync(user_input, new_input)
                         if result.intent == InterruptIntent.SWITCH:
@@ -1388,7 +1388,7 @@ class LumosCLI:
     async def _do_process_message(self, user_input: str):
         """实际处理用户消息的逻辑"""
         try:
-            from packages.server.agents.lumos_agent import AgentEvent
+            from packages.agents.lumos_agent import AgentEvent
             import sys
             import time
             current_tool = None
@@ -1641,12 +1641,12 @@ class LumosCLI:
             return False, ""
 
         # 检查当前是否在 PLAN 模式
-        from packages.server.agents.mode_manager import AgentMode
+        from packages.agents.mode_manager import AgentMode
         if self.agent.get_current_mode() != AgentMode.PLAN:
             return False, ""
 
         # 检查是否有待审批的 Plan
-        from packages.server.tools.plan_tools import PlanFileManager
+        from packages.tools.plan_tools import PlanFileManager
         plan_manager = PlanFileManager(self.session_id)
         if not plan_manager.is_pending_approval():
             return False, ""
@@ -2048,7 +2048,7 @@ async def run_non_interactive(config: dict, query: str):
     import sys
 
     try:
-        from packages.server.agents.lumos_agent import LumosAgent
+        from packages.agents.lumos_agent import LumosAgent
 
         api_key = config.get("api_key")
         provider = config.get("provider", "openai")
@@ -2180,7 +2180,7 @@ def _ensure_workspace(workspace_path=None):
         workspace_path: 自定义 workspace 路径，None 则用默认 ~/.lumos/workspace/
     """
     from pathlib import Path
-    from packages.server.cli.setup_cmd import run_setup
+    from packages.cli.commands.setup_cmd import run_setup
 
     if workspace_path:
         ws = Path(workspace_path)
@@ -2209,7 +2209,7 @@ def _ensure_workspace(workspace_path=None):
 def _handle_harness_command(args):
     """处理 lumos harness 子命令"""
     from pathlib import Path
-    from packages.server.harness.manager import HarnessManager
+    from packages.harness.manager import HarnessManager
 
     mgr = HarnessManager()
     action = getattr(args, 'harness_action', None)
@@ -2320,7 +2320,7 @@ def main():
 
     # lumos setup
     if args.command == 'setup':
-        from packages.server.cli.setup_cmd import run_setup
+        from packages.cli.commands.setup_cmd import run_setup
         import tzlocal
         user_name = args.name
         timezone = args.timezone
@@ -2341,7 +2341,7 @@ def main():
 
     # lumos init
     if args.command == 'init':
-        from packages.server.cli.init_cmd import run_init
+        from packages.cli.commands.init_cmd import run_init
         from pathlib import Path
         root = Path(args.root) if args.root else Path.cwd()
         result = run_init(project_root=root)
@@ -2360,7 +2360,7 @@ def main():
     if args.test:
         print(f"  {Colors.BRIGHT_CYAN}🧪 运行快速测试...{Colors.RESET}")
         try:
-            from packages.server.agents.lumos_agent import LumosAgent
+            from packages.agents.lumos_agent import LumosAgent
             agent = LumosAgent(
                 model_provider="openai",
                 api_key="test",

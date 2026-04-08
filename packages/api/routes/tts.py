@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from packages.server.edge_tts import synthesize_audio_base64_async
+from packages.edge_tts import synthesize_audio_base64_async
 
 
 router = APIRouter(prefix="/edge_tts", tags=["tts"])

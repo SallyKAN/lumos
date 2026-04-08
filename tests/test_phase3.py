@@ -4,11 +4,11 @@ import json
 import pytest
 from pathlib import Path
 
-from packages.server.evaluator.base import Evaluator, EvalResult, TaskSpec
-from packages.server.evaluator.builtins.efficiency import EfficiencyEvaluator
-from packages.server.trajectory.replay import TrajectoryReplay
-from packages.server.optimization.workspace import OptimizationWorkspace
-from packages.server.optimization.runner import BenchmarkRunner
+from packages.optimization.evaluator.base import Evaluator, EvalResult, TaskSpec
+from packages.optimization.evaluator.builtins.efficiency import EfficiencyEvaluator
+from packages.optimization.trajectory.replay import TrajectoryReplay
+from packages.optimization.workspace import OptimizationWorkspace
+from packages.optimization.runner import BenchmarkRunner
 
 
 # ============================================================================

@@ -68,7 +68,7 @@ lumos = "packages.cli.main:main"
 include = ["packages*"]
 
 [tool.setuptools.package-data]
-"packages.server" = ["config/*.yaml"]
+"packages.core" = ["config/*.yaml"]
 
 [tool.black]
 line-length = 100

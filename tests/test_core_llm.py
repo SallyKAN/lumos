@@ -4,7 +4,7 @@ Core Types 测试 — 替代旧的 test_core_llm.py
 测试新的 types.py 中的 LLMConfig、消息类型、内容块等。
 """
 import pytest
-from packages.server.core.types import (
+from packages.core.types import (
     LLMConfig,
     UserMessage,
     AssistantMessage,

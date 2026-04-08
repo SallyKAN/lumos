@@ -6,8 +6,8 @@ No LLM calls required.
 import pytest
 from pathlib import Path
 
-from packages.server.cli.init_cmd import run_init
-from packages.server.cli.setup_cmd import run_setup
+from packages.cli.commands.init_cmd import run_init
+from packages.cli.commands.setup_cmd import run_setup
 
 
 class TestLumosInit:

@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Awaitable, Optional
 
-from ..evaluator.base import Evaluator, EvalResult, TaskSpec
-from ..trajectory.replay import TrajectoryReplay
+from .evaluator.base import Evaluator, EvalResult, TaskSpec
+from .trajectory.replay import TrajectoryReplay
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,5 @@
 import pytest
-from packages.server.core.tool import BaseTool, ToolParam
+from packages.core.tool import BaseTool, ToolParam
 
 
 class EchoTool(BaseTool):

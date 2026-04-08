@@ -5,15 +5,15 @@ import pytest
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
-from packages.server.capability.prompt_composer import PromptComposer, PromptSection
-from packages.server.capability.workspace_loader import WorkspaceLoader
-from packages.server.capability.project_scanner import ProjectScanner
-from packages.server.harness.manager import HarnessManager
-from packages.server.harness.loader import HarnessLoader
-from packages.server.harness.compose import compose_harness
-from packages.server.memory.synthesizer import MemorySynthesizer
-from packages.server.cli.init_cmd import run_init
-from packages.server.cli.setup_cmd import run_setup
+from packages.capability.prompt_composer import PromptComposer, PromptSection
+from packages.capability.workspace_loader import WorkspaceLoader
+from packages.capability.project_scanner import ProjectScanner
+from packages.harness.manager import HarnessManager
+from packages.harness.loader import HarnessLoader
+from packages.harness.compose import compose_harness
+from packages.memory.synthesizer import MemorySynthesizer
+from packages.cli.commands.init_cmd import run_init
+from packages.cli.commands.setup_cmd import run_setup
 
 
 # ============================================================================

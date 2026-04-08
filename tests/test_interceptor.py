@@ -3,7 +3,7 @@
 import pytest
 from dataclasses import replace
 
-from packages.server.core.types import (
+from packages.core.types import (
     UserMessage,
     AssistantMessage,
     TextContent,
@@ -11,8 +11,8 @@ from packages.server.core.types import (
     LLMConfig,
     AgentLoopConfig,
 )
-from packages.server.core.tool import AgentTool, AgentToolResult
-from packages.server.interceptor.types import (
+from packages.core.tool import AgentTool, AgentToolResult
+from packages.interceptor.types import (
     AgentContext,
     ModelRequest,
     ModelResponse,
@@ -23,8 +23,8 @@ from packages.server.interceptor.types import (
     AgentError,
     ErrorRecovery,
 )
-from packages.server.interceptor.base import BaseInterceptor
-from packages.server.interceptor.engine import InterceptorEngine
+from packages.interceptor.base import BaseInterceptor
+from packages.interceptor.engine import InterceptorEngine
 
 
 # ============================================================================

@@ -50,18 +50,18 @@ DEFAULT_CONFIG = """\
 
 
 def _load_template(name: str) -> str:
-    """从 templates/workspace/ 加载模板文件"""
+    """从 harness/default/prompts/workspace/ 加载模板文件"""
     # 先尝试从包资源加载（pip install 后）
     try:
-        ref = importlib.resources.files("templates.workspace").joinpath(name)
+        ref = importlib.resources.files("packages.harness.default.prompts.workspace").joinpath(name)
         return ref.read_text(encoding="utf-8")
     except Exception:
         pass
 
     # 回退：从源码目录加载（开发模式）
-    # setup_cmd.py 在 packages/server/cli/ 下，模板在 templates/workspace/ 下
+    # setup_cmd.py 在 packages/cli/commands/ 下
     source_root = Path(__file__).resolve().parent.parent.parent.parent
-    template_path = source_root / "templates" / "workspace" / name
+    template_path = source_root / "packages" / "harness" / "default" / "prompts" / "workspace" / name
     if template_path.is_file():
         return template_path.read_text(encoding="utf-8")
 
